@@ -29,6 +29,7 @@ Route::prefix('api')->group(function () {
             Route::get('month', [FinanceController::class, 'month']);
             Route::post('month', [FinanceController::class, 'saveMonth']);
             Route::post('entries', [FinanceController::class, 'saveEntry']);
+            Route::post('entries/{entry}/pay', [FinanceController::class, 'pay']);
             Route::put('entries/{entry}', [FinanceController::class, 'saveEntry']);
             Route::delete('entries/{entry}', [FinanceController::class, 'deleteEntry']);
             Route::post('categories', [CategoryController::class, 'save']);

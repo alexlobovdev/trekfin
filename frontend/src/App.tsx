@@ -17,7 +17,7 @@ import {
   PiggyBank,
   Target,
 } from "lucide-react";
-import { api, ApiError, invalidateCsrf, today } from "./api";
+import { api, ApiError, invalidateCsrf, money, today } from "./api";
 import type { Bootstrap, Debt, Entry, Insight, Month, User } from "./types";
 import { Avatar, MonthPicker } from "./components/ui";
 import EntryForm, { type EntryDraft } from "./components/EntryForm";
@@ -60,6 +60,7 @@ export default function App() {
     [snapshot, setSnapshot] = useState<Month | null>(null),
     [insight, setInsight] = useState<Insight | null>(null),
     [draft, setDraft] = useState<EntryDraft | null>(null),
+    [receipt, setReceipt] = useState<Entry | null>(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false),
     [calendarDay, setCalendarDay] = useState(today()),
@@ -70,6 +71,7 @@ export default function App() {
       ? today()
       : month + "-01";
   const sequence = useRef(0);
+  const paying = useRef(new Set<number>());
   useEffect(() => {
     api<{ user: User }>("me")
       .then((r) => setUser(r.user))
@@ -84,6 +86,7 @@ export default function App() {
       setUser(null);
       setData(null);
       setSnapshot(null);
+      setReceipt(null);
     } else setError((e as Error).message);
   }, []);
   const refresh = useCallback(async () => {
@@ -137,7 +140,24 @@ export default function App() {
         ? { date: calendarDate, date_confirmed: true }
         : {}),
     });
-  const pay = (e: Entry) => setDraft({ ...e, paying: true });
+  const pay = async (e: Entry) => {
+    if (e.paid_cents >= e.amount_cents) {
+      const actual = snapshot?.entries.find((a) => a.state === "actual" && a.plan_id === e.id);
+      if (actual) setDraft(actual);
+      return;
+    }
+    if (paying.current.has(e.id)) return;
+    paying.current.add(e.id);
+    try {
+      const actual = await api<Entry>("entries/" + e.id + "/pay", "POST");
+      setReceipt(actual);
+      await refresh();
+    } catch (error) {
+      fail(error);
+    } finally {
+      paying.current.delete(e.id);
+    }
+  };
   const payDebt = (d: Debt) =>
     setDraft({
       state: "actual",
@@ -335,6 +355,13 @@ export default function App() {
             </div>
           )}
           {loading && <div className="loading-line" />}
+          {receipt && (
+            <div className="info-banner payment-receipt" role="status">
+              <span>✓ {receipt.kind === "income" ? "Доход записан" : "Оплата записана"}: {receipt.title} · {money(receipt.amount_cents)}</span>
+              <button className="text-button" onClick={() => setDraft(receipt)}>Изменить сумму или дату</button>
+              <button className="text-button" onClick={() => setReceipt(null)} aria-label="Скрыть сообщение об оплате">Скрыть</button>
+            </div>
+          )}
           {data && snapshot ? (
             <div
               className={loading ? "page-content refreshing" : "page-content"}
@@ -490,6 +517,7 @@ export default function App() {
           onClose={() => setDraft(null)}
           onSaved={() => {
             setDraft(null);
+            setReceipt(null);
             void refresh();
           }}
         />

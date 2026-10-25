@@ -1,7 +1,5 @@
 import { useState } from "react";
 import {
-  ArrowDownLeft,
-  ArrowUpRight,
   CalendarDays,
   Plus,
   Repeat2,
@@ -73,50 +71,31 @@ export default function Budget({
       </div>
       <div className="budget-stats">
         <div>
-          <span>Начальный остаток в плане</span>
-          <strong>{money(opening)}</strong>
+          <span>Осталось сейчас</span>
+          <strong>{money(t.balance)}</strong>
+          <small>Полученные деньги минус оплаченные расходы</small>
         </div>
-        <div>
-          <span>
-            <ArrowDownLeft size={15} />
-            План доходов
-          </span>
-          <strong className="positive">{money(t.planned_income)}</strong>
-        </div>
-        <div>
-          <span>
-            <ArrowUpRight size={15} />
-            План расходов
-          </span>
-          <strong>{money(t.planned_expense)}</strong>
+        <div className="pink-stat">
+          <span>Останется к концу месяца</span>
+          <strong>{money(t.forecast)}</strong>
+          <small>
+            {!plans.length ? "Добавьте план, чтобы учесть будущие расходы" : t.remaining_income === 0 && t.remaining_expense === 0
+              ? "Все платежи оплачены, лимиты израсходованы"
+              : `Ещё ожидается ${money(t.remaining_income)}, зарезервировано на расходы ${money(t.remaining_expense)}`}
+          </small>
         </div>
         <div>
           <span>План на конец месяца</span>
           <strong>{money(t.planned_balance)}</strong>
-        </div>
-        <div>
-          <span>Факт на сегодня</span>
-          <strong>{money(t.balance)}</strong>
-          <small>По проведённым операциям до сегодняшнего дня</small>
-        </div>
-        <div className="pink-stat">
-          <span>Прогноз с учётом лимитов</span>
-          <strong>{money(t.forecast)}</strong>
-          <small>
-            Ещё доходов: {money(t.remaining_income)} · расходов и лимитов: {money(t.remaining_expense)}
-          </small>
+          <small>Первоначальный ориентир. Реальные суммы могут отличаться.</small>
         </div>
       </div>
       <div className="info-banner">
         <CalendarDays size={20} />
         <p>
-          Лимит категории уменьшается от фактических трат. Конкретный платёж
-          подтверждайте галочкой — тогда он учитывается один раз.
-          {" "}Факт за месяц: доходы {money(t.income)} − расходы {money(t.expense)}.
-          {" "}Остаток до начала месяца: {money(t.actual_opening)}.
-          {t.remaining_income === 0 && t.remaining_expense === 0 && (
-            <> Все планы исполнены, лимиты израсходованы — прогноз совпадает с фактом за месяц.</>
-          )}
+          Оплатили платёж из списка — нажмите ✓. Он сам появится в операциях.
+          Сумму и дату оплаты можно поправить повторным нажатием на ✓.
+          Обычные покупки просто добавляйте в операции — остаток лимита уменьшится сам.
         </p>
       </div>
       {error && <p className="error">{error}</p>}
@@ -231,7 +210,12 @@ export default function Budget({
         )}
       </section>
       {month.plan?.note && <p className="source-note">{month.plan.note}</p>}
-      <section className="panel opening-panel">
+      <details className="panel budget-explanation">
+        <summary>Как посчитаны остатки</summary>
+        <p>Получено за месяц: {money(t.income)}. Потрачено: {money(t.expense)}. Остаток прошлых месяцев: {money(t.actual_opening)}.</p>
+        <p>В плане: доходы {money(t.planned_income)}, расходы {money(t.planned_expense)}, начальный остаток {money(opening)}.</p>
+        <p>Прогноз учитывает записанные операции и ещё не оплаченные платежи с остатками лимитов. Поэтому при выполненном плане он совпадает с текущим остатком.</p>
+        <div className="opening-panel">
         <div>
           <h3>Начальный остаток в плане</h3>
           <p>
@@ -271,7 +255,8 @@ export default function Budget({
             Сохранить
           </button>
         </form>
-      </section>
+        </div>
+      </details>
     </>
   );
 }

@@ -212,8 +212,11 @@ export function EntryRow({
       <div className="entry-tail">
         <strong className={entry.kind === "income" ? "positive" : ""}>
           {entry.kind === "income" ? "+" : planned ? "" : "−"}
-          {money(entry.amount_cents)}
+          {money(paid ? entry.paid_cents : entry.amount_cents)}
         </strong>
+        {planned && entry.paid_cents > 0 && (
+          <small>{entry.kind === "income" ? "Получено" : "Оплачено"}{!paid ? " " + money(entry.paid_cents) : ""}{paid && entry.paid_cents !== entry.amount_cents ? " · план " + money(entry.amount_cents) : ""}</small>
+        )}
         <span>
           {entry.author ? (
             <>
@@ -233,11 +236,11 @@ export function EntryRow({
       {planned && onPay && (
         <button
           className={"pay-button " + (paid ? "paid" : "")}
-          disabled={paid}
           onClick={() => onPay(entry)}
-          aria-label={paid ? "Оплачено" : "Подтвердить " + entry.title}
+          title={paid ? "Изменить сумму или дату" : "Записать на сегодня"}
+          aria-label={(paid ? "Изменить запись: " : entry.kind === "income" ? "Отметить полученным: " : "Отметить оплаченным: ") + entry.title}
         >
-          {paid ? <Check size={17} /> : <ArrowUpRight size={17} />}
+          <Check size={17} />
         </button>
       )}
     </div>

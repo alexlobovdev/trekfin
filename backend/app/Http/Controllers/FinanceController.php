@@ -11,6 +11,7 @@ use App\Models\SavingsGoal;
 use App\Models\User;
 use App\Services\BudgetService;
 use App\Services\Money;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -91,6 +92,18 @@ class FinanceController extends Controller
             if ($entry?->exists && $entry->state !== $v['state']) {
                 throw ValidationException::withMessages(['state' => 'Тип существующей записи менять нельзя.']);
             }
+            if (! $entry?->exists && $v['state'] === 'actual' && empty($v['plan_id']) && Category::whereKey($v['category_id'])->value('mode') === 'payment') {
+                $date = CarbonImmutable::parse($v['date']);
+                $matches = Entry::where('state', 'planned')->where('kind', $v['kind'])->where('category_id', $v['category_id'])
+                    ->whereBetween('date', [$date->startOfMonth()->toDateString(), $date->endOfMonth()->toDateString()])
+                    ->get()->filter(fn ($p) => mb_strtolower(trim($p->title)) === mb_strtolower(trim($v['title'])));
+                if ($matches->count() === 1) {
+                    $candidate = Entry::lockForUpdate()->findOrFail($matches->first()->id);
+                    if ((int) Entry::where('state', 'actual')->where('plan_id', $candidate->id)->sum('amount_cents') < $candidate->amount_cents) {
+                        $v['plan_id'] = $candidate->id;
+                    }
+                }
+            }
             if (! empty($v['plan_id'])) {
                 $plan = Entry::lockForUpdate()->findOrFail($v['plan_id']);
                 if ($v['state'] !== 'actual' || $plan->state !== 'planned' || $plan->kind !== $v['kind'] || $plan->id === $entry?->id) {
@@ -136,6 +149,29 @@ class FinanceController extends Controller
             }
 
             return $entity->load('category', 'author', 'debt');
+        });
+    }
+
+    public function pay(Request $r, Entry $entry): Entry
+    {
+        return DB::transaction(function () use ($r, $entry) {
+            $plan = Entry::lockForUpdate()->findOrFail($entry->id);
+            abort_unless($plan->state === 'planned' && $plan->category->mode !== 'limit', 422, 'Лимит уменьшается при добавлении расходов.');
+            $payments = Entry::where('state', 'actual')->where('plan_id', $plan->id);
+            $remaining = max(0, $plan->amount_cents - (int) (clone $payments)->sum('amount_cents'));
+            if ($remaining === 0) {
+                return $payments->latest('id')->firstOrFail()->load('category', 'author', 'debt');
+            }
+            $r->merge([
+                'title' => $plan->title, 'kind' => $plan->kind, 'state' => 'actual',
+                'category_id' => $plan->category_id, 'author_id' => $plan->author_id ?? $r->user()->id,
+                'amount' => intdiv($remaining, 100).'.'.str_pad((string) ($remaining % 100), 2, '0', STR_PAD_LEFT),
+                'date' => now()->toDateString(), 'date_confirmed' => true,
+                'plan_id' => $plan->id, 'debt_id' => $plan->debt_id, 'savings_goal_id' => $plan->savings_goal_id,
+                'note' => null,
+            ]);
+
+            return $this->saveEntry($r);
         });
     }
 

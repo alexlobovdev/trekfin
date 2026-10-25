@@ -26,7 +26,7 @@ export default function EntryForm({
   const paying = !!draft.paying,
     editing = !!draft.id && !paying;
   const [kind, setKind] = useState<Kind>(draft.kind || "expense");
-  const [state, setState] = useState(draft.state || "actual");
+  const state = draft.state || "actual";
   const [category, setCategory] = useState(
     String(
       draft.category_id ||
@@ -173,6 +173,8 @@ export default function EntryForm({
         {kind === "expense" &&
           !savings &&
           data.debts.some((d) => d.type !== "internal") && (
+            <details className="form-extra" open={!!debt}>
+            <summary>Погашение долга или кредита</summary>
             <label>
               В счёт долга или кредита
               <select
@@ -198,28 +200,36 @@ export default function EntryForm({
                   ))}
               </select>
             </label>
+            </details>
           )}
-        {(debt || savings) &&
-          !limitCategory &&
+        {(debt || savings) && !limitCategory &&
+          plans.some((p) => p.kind === kind && p.category?.mode !== "limit" && p.paid_cents < p.amount_cents) &&
           state === "actual" &&
           !paying &&
           !editing && (
           <label>
-            Связать с плановым платежом
+            Что оплатили из плана?
             <select
               value={linkedPlan}
               onChange={(e) => {
                 setLinkedPlan(e.target.value);
                 const p = plans.find((p) => String(p.id) === e.target.value);
-                if (p) setCategory(String(p.category_id));
+                if (p) {
+                  setCategory(String(p.category_id));
+                  setTitle(p.title);
+                  setAmount(amountInput(Math.max(0, p.amount_cents - p.paid_cents)));
+                  setAuthor(String(p.author_id || userId));
+                  setDebt(String(p.debt_id || ""));
+                  setSavings(String(p.savings_goal_id || ""));
+                }
               }}
             >
-              <option value="">Вне плана — уменьшить свободный остаток</option>
+              <option value="">Обычная покупка или другой платёж</option>
               {plans
                 .filter(
                   (p) =>
                     p.category?.mode !== "limit" &&
-                    p.category_id === Number(category) &&
+                    p.kind === kind &&
                     (!p.debt_id || String(p.debt_id) === debt) &&
                     (!p.savings_goal_id ||
                       String(p.savings_goal_id) === savings) &&
@@ -233,8 +243,7 @@ export default function EntryForm({
                 ))}
             </select>
             <span className="form-hint">
-              Выберите платёж из бюджета, если он уже учтён в плане — тогда
-              остаток не уменьшится повторно.
+              Можно выбрать готовый платёж или записать обычную покупку.
             </span>
           </label>
         )}
@@ -289,7 +298,7 @@ export default function EntryForm({
                 ))}
             </select>
           </label>
-          <label>
+          {!(state === "planned" && limitCategory) && <label>
             {paying || state === "actual" ? "Дата фактической операции" : "Дата платежа в этом месяце"}
             <input
               required
@@ -300,7 +309,7 @@ export default function EntryForm({
               }
               onChange={(e) => setDate(e.target.value)}
             />
-          </label>
+          </label>}
         </div>
         {draft.recurring_id && state === "planned" && !paying && (
           <p className="form-hint">
@@ -355,7 +364,7 @@ export default function EntryForm({
             прогресс.
           </p>
         )}
-        {state === "planned" && !paying && (
+        {state === "planned" && !paying && !limitCategory && (
           <label className="check-label">
             <input
               type="checkbox"
@@ -408,18 +417,6 @@ export default function EntryForm({
             onChange={(e) => setNote(e.target.value)}
           />
         </label>
-        {!editing && !paying && (
-          <label className="check-label">
-            <input
-              type="checkbox"
-              checked={state === "planned"}
-              onChange={(e) =>
-                setState(e.target.checked ? "planned" : "actual")
-              }
-            />
-            Это план на месяц
-          </label>
-        )}
         {paying && (
           <p className="form-hint">
             План сохранится. Создадим связанную фактическую операцию от

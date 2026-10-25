@@ -71,13 +71,12 @@ export default function Overview({
         <section className="balance-card">
           <div className="balance-copy">
             <span className="balance-label">
-              Остаток на конец месяца{" "}
-              <span className="tiny-pill">План</span>
+              Осталось сейчас
             </span>
-            <strong>{money(t.planned_balance)}</strong>
+            <strong>{money(t.balance)}</strong>
             <p>
-              Сейчас по факту {money(t.balance)}. Если додержать лимиты и
-              платежи — {money(t.forecast)}.
+              После всех запланированных платежей и расходов в пределах лимитов
+              останется {money(t.forecast)}.
             </p>
             <button
               onClick={() => onNavigate("budget")}
@@ -211,7 +210,8 @@ export default function Overview({
                   <button
                     className="pay-button"
                     onClick={() => onPay(e)}
-                    aria-label={"Подтвердить " + e.title}
+                    title="Записать оплату на сегодня"
+                    aria-label={"Отметить оплаченным: " + e.title}
                   >
                     <Check size={16} />
                   </button>
