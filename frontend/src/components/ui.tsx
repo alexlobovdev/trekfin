@@ -126,7 +126,7 @@ export function Modal({
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     ref.current?.showModal();
-    ref.current?.querySelector<HTMLInputElement>("input[autofocus]")?.focus();
+    ref.current?.querySelector<HTMLElement>("input, select, textarea")?.focus();
     const old = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
