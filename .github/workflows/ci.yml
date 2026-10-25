@@ -1,0 +1,33 @@
+name: Build
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_pgsql, gmp
+          coverage: none
+      - name: Validate PHP and dependency lock
+        working-directory: backend
+        run: |
+          composer validate --no-check-publish
+          composer install --no-interaction --no-dev --prefer-dist
+          find app config database routes bootstrap -name '*.php' -not -path 'bootstrap/cache/*' -print0 | xargs -0 -n1 php -l
+          php artisan route:list --path=api --except-vendor
+      - name: Validate Compose and build production images
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+          docker compose build app nginx

@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+node_modules/
+frontend/dist/
+backend/vendor/
+backend/.env
+backend/storage/app/private/*
+private/
+*.sqlite
+.DS_Store
+.idea/
+.deployed-sha
+playwright-report/
+test-results/
+
+*.tsbuildinfo

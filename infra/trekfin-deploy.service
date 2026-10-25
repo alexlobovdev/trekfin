@@ -1,0 +1,9 @@
+[Unit]
+Description=Deploy Trekfin after a successful GitHub Actions build
+After=network-online.target docker.service
+Wants=network-online.target
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/trekfin
+ExecStart=/usr/bin/bash /opt/trekfin/scripts/deploy-check.sh
+TimeoutStartSec=1800

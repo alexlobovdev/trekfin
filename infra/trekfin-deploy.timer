@@ -1,0 +1,8 @@
+[Unit]
+Description=Check Trekfin for verified updates
+[Timer]
+OnBootSec=90s
+OnUnitActiveSec=180s
+Unit=trekfin-deploy.service
+[Install]
+WantedBy=timers.target

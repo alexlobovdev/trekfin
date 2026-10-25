@@ -1,0 +1,99 @@
+name: trekfin
+x-app: &app
+  image: trekfin-php:local
+  build:
+    context: .
+    dockerfile: infra/php.Dockerfile
+  env_file: .env
+  volumes:
+    - storage:/var/www/backend/storage
+  networks: [internal]
+  restart: unless-stopped
+  depends_on:
+    db:
+      condition: service_healthy
+services:
+  app:
+    <<: *app
+    mem_limit: 384m
+    healthcheck:
+      test: [CMD-SHELL, "php -r 'exit(@fsockopen(\"127.0.0.1\",9000)?0:1);'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+  scheduler:
+    <<: *app
+    command: [php, artisan, schedule:work]
+    mem_limit: 192m
+  nginx:
+    image: trekfin-nginx:local
+    build:
+      context: .
+      dockerfile: infra/nginx.Dockerfile
+    restart: unless-stopped
+    mem_limit: 64m
+    depends_on:
+      app:
+        condition: service_healthy
+    networks: [internal, edge]
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${EDGE_NETWORK:-crm}
+      traefik.http.services.trekfin.loadbalancer.server.port: "80"
+      traefik.http.routers.trekfin.rule: Host(`${DOMAIN:-trekfin.ru}`)
+      traefik.http.routers.trekfin.entrypoints: websecure
+      traefik.http.routers.trekfin.tls: "true"
+      traefik.http.routers.trekfin.tls.certresolver: letsencrypt
+      traefik.http.routers.trekfin.service: trekfin
+      traefik.http.routers.trekfin-http.rule: Host(`${DOMAIN:-trekfin.ru}`)
+      traefik.http.routers.trekfin-http.entrypoints: web
+      traefik.http.routers.trekfin-http.middlewares: trekfin-https
+      traefik.http.routers.trekfin-http.service: trekfin
+      traefik.http.middlewares.trekfin-https.redirectscheme.scheme: https
+      traefik.http.middlewares.trekfin-https.redirectscheme.permanent: "true"
+    healthcheck:
+      test: [CMD-SHELL, "wget -q -O /dev/null http://127.0.0.1/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    mem_limit: 384m
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-trekfin}
+      POSTGRES_USER: ${DB_USERNAME:-trekfin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+    volumes: ["postgres:/var/lib/postgresql/data"]
+    networks: [internal]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  traefik:
+    profiles: [standalone]
+    image: traefik:v3.6
+    restart: unless-stopped
+    command:
+      - --api.dashboard=false
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.storage=/acme/acme.json
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@trekfin.ru}
+    ports: ["80:80", "443:443"]
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock:ro", "acme:/acme"]
+    networks: [edge]
+networks:
+  internal:
+  edge:
+    external: true
+    name: ${EDGE_NETWORK:-crm}
+volumes:
+  postgres:
+  storage:
+  acme:

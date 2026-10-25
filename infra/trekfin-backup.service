@@ -1,0 +1,6 @@
+[Unit]
+Description=Back up Trekfin PostgreSQL
+After=docker.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash /opt/trekfin/scripts/backup.sh
