@@ -28,7 +28,7 @@ services:
     <<: *app
     command: [php, artisan, schedule:work]
     mem_limit: 192m
-  nginx:
+  trekfin-web:
     image: trekfin-nginx:local
     build:
       context: .

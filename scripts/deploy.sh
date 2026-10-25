@@ -21,16 +21,16 @@ rollback() {
     if docker image inspect "$image:previous" >/dev/null 2>&1; then docker tag "$image:previous" "$image:local"; fi
   done
   if [[ -n "$previous_revision" ]]; then git reset --hard "$previous_revision"; fi
-  docker compose up -d --no-build app nginx scheduler || true
+  docker compose up -d --no-build --remove-orphans app trekfin-web scheduler || true
   exit 1
 }
 trap rollback ERR
-docker compose build app nginx
+docker compose build app trekfin-web
 docker compose up -d db
 docker compose run --rm --no-deps app php artisan migrate --force
-docker compose up -d --no-build app nginx scheduler
+docker compose up -d --no-build --remove-orphans app trekfin-web scheduler
 for attempt in $(seq 1 30); do
-  if docker compose exec -T nginx wget -q -O /dev/null http://127.0.0.1/api/health; then
+  if docker compose exec -T trekfin-web wget -q -O /dev/null http://127.0.0.1/api/health; then
     echo "$target_revision" > .deployed-sha
     echo "Deployed $target_revision"
     exit 0

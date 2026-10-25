@@ -14,4 +14,4 @@ previous_attempt="$(stat -c %Y .tls-attempt 2>/dev/null || echo 0)"
 (( $(date +%s) - previous_attempt >= 900 )) || exit 0
 touch .tls-attempt
 echo 'DNS is ready; refreshing the Trekfin router to request its certificate'
-docker compose up -d --no-build --no-deps --force-recreate nginx
+docker compose up -d --no-build --no-deps --force-recreate trekfin-web
