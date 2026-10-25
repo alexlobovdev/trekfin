@@ -5,6 +5,8 @@ import type { Bootstrap, Entry, Month } from "../types";
 import { Empty, EntryRow } from "../components/ui";
 
 const weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+const dayKey = (value: unknown) =>
+  typeof value === "string" ? value.slice(0, 10) : "";
 const compact = (cents: number) => {
   const rub = cents / 100,
     divisor = rub >= 1000000 ? 1000000 : rub >= 1000 ? 1000 : 1;
@@ -51,21 +53,23 @@ export default function Calendar({
         String(e.author_id) === author ||
         (e.state === "planned" && !e.author_id)),
   );
+  const payment = (e: Entry) => e.category?.mode !== "limit";
   const actual = expenses.filter((e) => e.state === "actual"),
-    plans = expenses.filter((e) => e.state === "planned"),
+    plans = expenses.filter((e) => e.state === "planned" && payment(e)),
     undated = plans.filter((e) => !e.date_confirmed),
-    dated = plans.filter((e) => e.date_confirmed);
+    dated = plans.filter((e) => e.date_confirmed && !!dayKey(e.date));
   const sums = new Map<
     string,
     { actual: number; planned: number; authors: Set<number> }
   >();
   for (const e of [...actual, ...(includePlans ? dated : [])]) {
-    const key = e.date.slice(0, 10),
-      day = sums.get(key) || {
-        actual: 0,
-        planned: 0,
-        authors: new Set<number>(),
-      };
+    const key = dayKey(e.date);
+    if (!key) continue;
+    const day = sums.get(key) || {
+      actual: 0,
+      planned: 0,
+      authors: new Set<number>(),
+    };
     if (e.state === "actual") {
       day.actual += e.amount_cents;
       if (e.author_id) day.authors.add(e.author_id);
@@ -75,8 +79,9 @@ export default function Calendar({
   const dayEntries = expenses
     .filter(
       (e) =>
-        e.date.slice(0, 10) === selected &&
-        (e.state === "actual" || (includePlans && e.date_confirmed)),
+        dayKey(e.date) === selected &&
+        (e.state === "actual" ||
+          (includePlans && e.date_confirmed && payment(e))),
     )
     .sort((a, b) => a.state.localeCompare(b.state) || b.id - a.id);
   const daySums = sums.get(selected),
@@ -206,6 +211,7 @@ export default function Calendar({
                 isToday = date === today();
               return (
                 <button
+                  type="button"
                   key={date}
                   data-date={date}
                   tabIndex={date === selected ? 0 : -1}

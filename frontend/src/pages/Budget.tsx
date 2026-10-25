@@ -8,7 +8,18 @@ import {
 } from "lucide-react";
 import { api, money, monthLabel } from "../api";
 import type { Bootstrap, Entry, Month } from "../types";
-import { Empty, EntryRow } from "../components/ui";
+import { Empty, EntryRow, LimitBar } from "../components/ui";
+const ruCount = (n: number, one: string, few: string, many: string) => {
+  const n10 = n % 10,
+    n100 = n % 100;
+  const word =
+    n10 === 1 && n100 !== 11
+      ? one
+      : n10 >= 2 && n10 <= 4 && (n100 < 12 || n100 > 14)
+        ? few
+        : many;
+  return `${n} ${word}`;
+};
 export default function Budget({
   month,
   data,
@@ -30,7 +41,10 @@ export default function Budget({
     [error, setError] = useState("");
   const t = month.totals,
     opening = month.plan?.opening_cents || 0,
-    plans = month.entries.filter((e) => e.state === "planned");
+    plans = month.entries.filter((e) => e.state === "planned"),
+    limits = (month.categories || []).filter((c) => c.mode === "limit"),
+    limitIds = new Set(limits.map((c) => c.id)),
+    payments = plans.filter((e) => !limitIds.has(e.category_id));
   const generate = async () => {
     setBusy(true);
     setError("");
@@ -76,16 +90,24 @@ export default function Budget({
           </span>
           <strong>{money(t.planned_expense)}</strong>
         </div>
+        <div>
+          <span>План на конец месяца</span>
+          <strong>{money(t.planned_balance)}</strong>
+        </div>
+        <div>
+          <span>Факт на сегодня</span>
+          <strong>{money(t.balance)}</strong>
+        </div>
         <div className="pink-stat">
-          <span>Остаток с учётом факта</span>
+          <span>Прогноз с учётом лимитов</span>
           <strong>{money(t.forecast)}</strong>
         </div>
       </div>
       <div className="info-banner">
         <CalendarDays size={20} />
         <p>
-          Дополнительные доходы и расходы сразу меняют остаток. Подтвердите
-          платёж галочкой, чтобы учесть его один раз — в плане и в факте.
+          Лимит категории уменьшается от фактических трат. Конкретный платёж
+          подтверждайте галочкой — тогда он учитывается один раз.
         </p>
       </div>
       {error && <p className="error">{error}</p>}
@@ -93,7 +115,13 @@ export default function Budget({
         <div className="panel-title">
           <div>
             <h2>Бюджет месяца</h2>
-            <p>{plans.length} запланированных операций</p>
+            <p>
+              {limits.length
+                ? ruCount(limits.length, "лимит", "лимита", "лимитов")
+                : "Лимитов пока нет"}
+              {" · "}
+              {ruCount(payments.length, "платёж", "платежа", "платежей")}
+            </p>
           </div>
           <button className="button secondary" onClick={onAdd}>
             <Plus size={16} />В план
@@ -101,20 +129,63 @@ export default function Budget({
         </div>
         {plans.length ? (
           <>
-            <div className="list-section-label">
-              РАСХОДЫ <span>{money(t.planned_expense)}</span>
-            </div>
-            {plans
-              .filter((e) => e.kind === "expense")
-              .map((e) => (
-                <EntryRow key={e.id} entry={e} onEdit={onEdit} onPay={onPay} />
-              ))}
-            {plans.some((e) => e.kind === "income") && (
+            {limits.length > 0 && (
+              <>
+                <div className="list-section-label">ЛИМИТЫ</div>
+                {limits.map((c) => (
+                  <div key={c.id} className="limit-block">
+                    <LimitBar
+                      name={c.name}
+                      planned={c.planned_cents}
+                      actual={c.actual_cents}
+                      color={c.color}
+                    />
+                    {plans
+                      .filter((e) => e.category_id === c.id)
+                      .map((e) => (
+                        <EntryRow key={e.id} entry={e} onEdit={onEdit} />
+                      ))}
+                  </div>
+                ))}
+              </>
+            )}
+            {payments.some((e) => e.kind === "expense") && (
               <>
                 <div className="list-section-label">
-                  ДОХОДЫ <span>{money(t.planned_income)}</span>
+                  ПЛАТЕЖИ{" "}
+                  <span>
+                    {money(
+                      payments
+                        .filter((e) => e.kind === "expense")
+                        .reduce((s, e) => s + e.amount_cents, 0),
+                    )}
+                  </span>
                 </div>
-                {plans
+                {payments
+                  .filter((e) => e.kind === "expense")
+                  .map((e) => (
+                    <EntryRow
+                      key={e.id}
+                      entry={e}
+                      onEdit={onEdit}
+                      onPay={onPay}
+                    />
+                  ))}
+              </>
+            )}
+            {payments.some((e) => e.kind === "income") && (
+              <>
+                <div className="list-section-label">
+                  ДОХОДЫ{" "}
+                  <span>
+                    {money(
+                      payments
+                        .filter((e) => e.kind === "income")
+                        .reduce((s, e) => s + e.amount_cents, 0),
+                    )}
+                  </span>
+                </div>
+                {payments
                   .filter((e) => e.kind === "income")
                   .map((e) => (
                     <EntryRow

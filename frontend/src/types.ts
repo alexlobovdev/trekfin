@@ -1,13 +1,27 @@
 export type Person = { id: number; name: string };
 export type User = Person & { email: string; must_change_password: boolean };
 export type Kind = "expense" | "income";
+export type CategoryMode = "limit" | "payment";
 export type Category = {
   id: number;
   name: string;
   kind: Kind;
+  mode: CategoryMode;
   icon: string;
   color: string;
   active: boolean;
+};
+export type CategoryProgress = {
+  id: number;
+  name: string;
+  kind: Kind;
+  mode: CategoryMode;
+  color: string;
+  icon: string;
+  planned_cents: number;
+  actual_cents: number;
+  left_cents: number;
+  over_cents: number;
 };
 export type Entry = {
   id: number;
@@ -51,12 +65,14 @@ export type Month = {
   month: string;
   plan: MonthPlan | null;
   entries: Entry[];
+  categories: CategoryProgress[];
   totals: {
     planned_income: number;
     planned_expense: number;
     income: number;
     expense: number;
     balance: number;
+    planned_balance: number;
     forecast: number;
     savings: number;
   };

@@ -486,6 +486,7 @@ export default function App() {
               (e) => e.state === "planned" && e.kind === "expense",
             ) || []
           }
+          progress={snapshot?.categories || []}
           onClose={() => setDraft(null)}
           onSaved={() => {
             setDraft(null);

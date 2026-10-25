@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { ArrowDownLeft, ArrowUpRight, Trash2 } from "lucide-react";
-import { api, amountInput, today } from "../api";
-import type { Bootstrap, Entry, Kind } from "../types";
+import { api, amountInput, money, today } from "../api";
+import type { Bootstrap, CategoryProgress, Entry, Kind } from "../types";
 import { Modal } from "./ui";
 export type EntryDraft = Partial<Entry> & { paying?: boolean };
 export default function EntryForm({
@@ -10,6 +10,7 @@ export default function EntryForm({
   userId,
   month,
   plans,
+  progress,
   onClose,
   onSaved,
 }: {
@@ -18,6 +19,7 @@ export default function EntryForm({
   userId: number;
   month: string;
   plans: Entry[];
+  progress: CategoryProgress[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -65,6 +67,26 @@ export default function EntryForm({
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [confirmDelete, setConfirmDelete] = useState(false);
+  const selectedCategory = data.categories.find(
+      (c) => c.id === Number(category),
+    ),
+    limitCategory = selectedCategory?.mode === "limit",
+    limitRow = progress.find((c) => c.id === Number(category));
+  const typedCents = (() => {
+      const n = Number(amount.replace(",", "."));
+      return Number.isFinite(n) ? Math.round(n * 100) : 0;
+    })(),
+    ownCents =
+      editing &&
+      draft.state === "actual" &&
+      draft.category_id === Number(category)
+        ? draft.amount_cents || 0
+        : 0,
+    nextActual =
+      (limitRow?.actual_cents || 0) -
+      ownCents +
+      ((state === "actual" || paying) && amount.trim() ? typedCents : 0),
+    limitPlanned = limitRow?.planned_cents || 0;
   const changeKind = (k: Kind) => {
     setKind(k);
     setDebt("");
@@ -177,7 +199,11 @@ export default function EntryForm({
               </select>
             </label>
           )}
-        {(debt || savings) && state === "actual" && !paying && !editing && (
+        {(debt || savings) &&
+          !limitCategory &&
+          state === "actual" &&
+          !paying &&
+          !editing && (
           <label>
             Связать с плановым платежом
             <select
@@ -192,6 +218,7 @@ export default function EntryForm({
               {plans
                 .filter(
                   (p) =>
+                    p.category?.mode !== "limit" &&
                     p.category_id === Number(category) &&
                     (!p.debt_id || String(p.debt_id) === debt) &&
                     (!p.savings_goal_id ||
@@ -275,6 +302,21 @@ export default function EntryForm({
             />
           </label>
         </div>
+        {limitCategory && (state === "actual" || paying) && (
+          <p className="form-hint">
+            {limitPlanned
+              ? `В «${selectedCategory?.name}» будет ${money(nextActual)} из ${money(limitPlanned)}. ` +
+                (nextActual > limitPlanned
+                  ? `Выше лимита на ${money(nextActual - limitPlanned)}.`
+                  : `Останется ${money(limitPlanned - nextActual)}.`)
+              : `У «${selectedCategory?.name}» в этом месяце нет лимита. Добавьте сумму в план.`}
+          </p>
+        )}
+        {limitCategory && state === "planned" && !paying && (
+          <p className="form-hint">
+            Эта сумма задаёт лимит категории, а не отдельный платёж.
+          </p>
+        )}
         {["Отложенное", "Возврат из накоплений"].includes(
           data.categories.find((c) => c.id === Number(category))?.name || "",
         ) &&

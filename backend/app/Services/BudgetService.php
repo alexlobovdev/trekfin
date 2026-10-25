@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Category;
 use App\Models\Entry;
 use App\Models\MonthPlan;
 use App\Models\Recurring;
@@ -24,13 +25,25 @@ class BudgetService
         $income = $sum('actual', 'income');
         $expense = $sum('actual', 'expense');
         $savings = (int) $entries->where('state', 'actual')->whereNotNull('savings_goal_id')->sum(fn ($e) => $e->kind === 'expense' ? $e->amount_cents : -$e->amount_cents);
-        $remaining = fn ($kind) => (int) $entries->where('state', 'planned')->where('kind', $kind)->sum(fn ($e) => max(0, $e->amount_cents - $e->paid_cents));
         $history = Entry::where('state', 'actual')->where('date', '<', $date->toDateString())->selectRaw("COALESCE(SUM(CASE WHEN kind='income' THEN amount_cents ELSE -amount_cents END),0) as balance")->value('balance');
+        $categories = Category::orderBy('id')->get()->map(function ($c) use ($entries) {
+            $planned = (int) $entries->where('state', 'planned')->where('category_id', $c->id)->sum('amount_cents');
+            $actual = (int) $entries->where('state', 'actual')->where('category_id', $c->id)->sum('amount_cents');
+
+            return ['id' => $c->id, 'name' => $c->name, 'kind' => $c->kind, 'mode' => $c->mode, 'color' => $c->color, 'icon' => $c->icon,
+                'planned_cents' => $planned, 'actual_cents' => $actual, 'left_cents' => $c->mode === 'limit' ? max(0, $planned - $actual) : 0, 'over_cents' => $c->mode === 'limit' ? max(0, $actual - $planned) : 0];
+        })->filter(fn ($c) => $c['planned_cents'] || $c['actual_cents'])->values();
+        $scheduled = fn ($kind) => (int) $entries->where('state', 'planned')->where('kind', $kind)->filter(fn ($e) => $e->category?->mode !== 'limit')->sum(fn ($e) => max(0, $e->amount_cents - $e->paid_cents));
+        $limitLeft = fn ($kind) => (int) $categories->where('kind', $kind)->where('mode', 'limit')->sum('left_cents');
+        $opening = (int) ($plan?->opening_cents ?? 0);
+        $plannedIncome = $sum('planned', 'income');
+        $plannedExpense = $sum('planned', 'expense');
 
         return [
-            'month' => $month, 'plan' => $plan, 'entries' => $entries,
-            'totals' => ['planned_income' => $sum('planned', 'income'), 'planned_expense' => $sum('planned', 'expense'), 'income' => $income, 'expense' => $expense, 'balance' => (int) $history + $income - $expense,
-                'savings' => $savings, 'forecast' => ($plan?->opening_cents ?? 0) + $income - $expense + $remaining('income') - $remaining('expense')],
+            'month' => $month, 'plan' => $plan, 'entries' => $entries, 'categories' => $categories,
+            'totals' => ['planned_income' => $plannedIncome, 'planned_expense' => $plannedExpense, 'income' => $income, 'expense' => $expense, 'balance' => (int) $history + $income - $expense,
+                'savings' => $savings, 'planned_balance' => $opening + $plannedIncome - $plannedExpense,
+                'forecast' => $opening + $income - $expense + $scheduled('income') - $scheduled('expense') + $limitLeft('income') - $limitLeft('expense')],
             'by_author' => User::select('id', 'name')->get()->map(fn ($u) => [...$u->toArray(), 'income' => (int) $entries->where('state', 'actual')->where('kind', 'income')->where('author_id', $u->id)->sum('amount_cents'), 'expense' => (int) $entries->where('state', 'actual')->where('kind', 'expense')->where('author_id', $u->id)->sum('amount_cents')]),
         ];
     }

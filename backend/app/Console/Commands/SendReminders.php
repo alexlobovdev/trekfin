@@ -21,7 +21,7 @@ class SendReminders extends Command
             return self::SUCCESS;
         }
         if ($type === 'payments') {
-            $count = Entry::where('state', 'planned')->where('date_confirmed', true)->where('kind', 'expense')->whereBetween('date', [now()->toDateString(), now()->addDay()->toDateString()])->get()->filter(fn ($e) => (int) Entry::where('plan_id', $e->id)->where('state', 'actual')->sum('amount_cents') < $e->amount_cents)->count();
+            $count = Entry::where('state', 'planned')->where('date_confirmed', true)->where('kind', 'expense')->whereBetween('date', [now()->toDateString(), now()->addDay()->toDateString()])->whereHas('category', fn ($q) => $q->where('mode', 'payment'))->get()->filter(fn ($e) => (int) Entry::where('plan_id', $e->id)->where('state', 'actual')->sum('amount_cents') < $e->amount_cents)->count();
             if (! $count) {
                 return self::SUCCESS;
             }

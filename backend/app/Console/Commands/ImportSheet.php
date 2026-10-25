@@ -34,7 +34,9 @@ class ImportSheet extends Command
         $colors = ['#d3437b', '#bd8dc9', '#d5a067', '#7c9c90', '#8195cc', '#d78c9c'];
         $icons = ['Жильё' => 'home', 'Коммунальные услуги' => 'zap', 'Интернет' => 'wifi', 'Транспорт' => 'car', 'Продукты' => 'basket', 'Кафе и рестораны' => 'utensils', 'Кофе дома' => 'coffee', 'Кофе с собой' => 'coffee', 'Спорт' => 'activity', 'Кредиты' => 'credit-card', 'Долги' => 'handshake', 'Налоги' => 'receipt', 'Основной доход' => 'briefcase'];
 
-        return Category::firstOrCreate(['name' => $label, 'kind' => $kind], ['color' => $colors[Category::count() % count($colors)], 'icon' => $icons[$label] ?? 'wallet']);
+        $limits = ['Продукты', 'Кафе и рестораны', 'Кофе дома', 'Кофе с собой', 'Транспорт', 'Другое'];
+
+        return Category::firstOrCreate(['name' => $label, 'kind' => $kind], ['color' => $colors[Category::count() % count($colors)], 'icon' => $icons[$label] ?? 'wallet', 'mode' => in_array($label, $limits, true) ? 'limit' : 'payment']);
     }
 
     public function handle(): int

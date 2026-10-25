@@ -1,7 +1,14 @@
 import { ArrowRight, ArrowUpRight, Check, Heart, Plus } from "lucide-react";
 import { money } from "../api";
 import type { Bootstrap, Entry, Insight, Month } from "../types";
-import { Avatar, CategoryIcon, Empty, EntryRow, Stat } from "../components/ui";
+import {
+  Avatar,
+  CategoryIcon,
+  Empty,
+  EntryRow,
+  LimitBar,
+  Stat,
+} from "../components/ui";
 import TipCard from "../components/TipCard";
 import GoalsDashboard from "../components/GoalsDashboard";
 export default function Overview({
@@ -23,7 +30,10 @@ export default function Overview({
 }) {
   const t = month.totals;
   const plans = month.entries.filter(
-      (e) => e.state === "planned" && e.kind === "expense",
+      (e) =>
+        e.state === "planned" &&
+        e.kind === "expense" &&
+        e.category?.mode !== "limit",
     ),
     actual = month.entries.filter((e) => e.state === "actual");
   const expenses = month.entries.filter(
@@ -52,9 +62,9 @@ export default function Overview({
     .filter((e) => e.paid_cents < e.amount_cents)
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 4);
-  const ratio = t.planned_expense
-    ? Math.round((t.expense / t.planned_expense) * 100)
-    : 0;
+  const limitRows = (month.categories || []).filter(
+    (c) => c.mode === "limit" && (c.planned_cents || c.actual_cents),
+  );
   return (
     <>
       <div className="summary-grid">
@@ -62,10 +72,13 @@ export default function Overview({
           <div className="balance-copy">
             <span className="balance-label">
               Остаток на конец месяца{" "}
-              <span className="tiny-pill">План + факт</span>
+              <span className="tiny-pill">План</span>
             </span>
-            <strong>{money(t.forecast)}</strong>
-            <p>С учётом реальных операций и оставшихся платежей</p>
+            <strong>{money(t.planned_balance)}</strong>
+            <p>
+              Сейчас по факту {money(t.balance)}. Если додержать лимиты и
+              платежи — {money(t.forecast)}.
+            </p>
             <button
               onClick={() => onNavigate("budget")}
               className="balance-link"
@@ -154,25 +167,19 @@ export default function Overview({
               body="Добавьте регулярные платежи или запишите первую операцию."
             />
           )}
-          <div className="plan-progress">
-            <div>
-              <span>Потрачено от плана</span>
-              <strong>{ratio}%</strong>
+          {limitRows.length > 0 && (
+            <div className="limit-list">
+              {limitRows.map((c) => (
+                <LimitBar
+                  key={c.id}
+                  name={c.name}
+                  planned={c.planned_cents}
+                  actual={c.actual_cents}
+                  color={c.color}
+                />
+              ))}
             </div>
-            <div className="progress-track">
-              <i
-                style={{
-                  width: Math.min(ratio, 100) + "%",
-                  background: ratio > 100 ? "#c74f52" : undefined,
-                }}
-              />
-            </div>
-            <small>
-              {t.expense > t.planned_expense
-                ? "Выше плана на " + money(t.expense - t.planned_expense)
-                : "В бюджете ещё " + money(t.planned_expense - t.expense)}
-            </small>
-          </div>
+          )}
         </section>
         <section className="panel upcoming-panel">
           <div className="panel-title">

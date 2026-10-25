@@ -151,6 +151,7 @@ export default function Settings({
               onClick={() =>
                 setCategory({
                   kind: "expense",
+                  mode: "payment",
                   color: "#d3437b",
                   icon: "wallet",
                   active: true,
@@ -177,7 +178,9 @@ export default function Settings({
                     >
                       <CategoryIcon category={c} />
                       <strong>{c.name}</strong>
-                      <span>Изменить</span>
+                      <span>
+                        {c.mode === "limit" ? "Лимит месяца" : "Платёж"}
+                      </span>
                     </button>
                   ))}
               </div>
@@ -454,6 +457,13 @@ function CategoryForm({
           <select name="kind" defaultValue={category.kind}>
             <option value="expense">Расход</option>
             <option value="income">Доход</option>
+          </select>
+        </label>
+        <label>
+          Как учитывать план
+          <select name="mode" defaultValue={category.mode || "payment"}>
+            <option value="limit">Лимит на месяц</option>
+            <option value="payment">Конкретный платёж</option>
           </select>
         </label>
         <div className="form-grid">

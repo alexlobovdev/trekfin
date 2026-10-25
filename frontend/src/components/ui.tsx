@@ -243,6 +243,46 @@ export function EntryRow({
     </div>
   );
 }
+export function LimitBar({
+  name,
+  planned,
+  actual,
+  color,
+}: {
+  name: string;
+  planned: number;
+  actual: number;
+  color?: string;
+}) {
+  const ratio = planned ? Math.round((actual / planned) * 100) : actual ? 100 : 0;
+  const over = planned > 0 && actual > planned;
+  return (
+    <div className="plan-progress">
+      <div>
+        <span>{name}</span>
+        <strong>{planned ? ratio + "%" : "без лимита"}</strong>
+      </div>
+      <div className="progress-track">
+        <i
+          style={{
+            width: Math.min(ratio, 100) + "%",
+            background: over ? "#c74f52" : color,
+          }}
+        />
+      </div>
+      <small>
+        {planned
+          ? money(actual) +
+            " из " +
+            money(planned) +
+            (over
+              ? " · выше на " + money(actual - planned)
+              : " · осталось " + money(Math.max(0, planned - actual)))
+          : "Потрачено " + money(actual) + " · лимит на месяц не задан"}
+      </small>
+    </div>
+  );
+}
 export function Stat({
   label,
   value,
