@@ -52,6 +52,7 @@ class FinanceController extends Controller
             'author_id' => ['nullable', 'integer', Rule::exists('users', 'id')], 'kind' => 'required|in:income,expense', 'state' => 'required|in:planned,actual',
             'amount' => ['required', 'regex:/^\d{1,9}([.,]\d{1,2})?$/'], 'date' => 'required|date_format:Y-m-d|after_or_equal:2000-01-01|before:2100-01-01',
             'note' => 'nullable|string|max:2000', 'plan_id' => 'nullable|integer|exists:entries,id',
+            'date_confirmed' => 'sometimes|boolean',
         ]);
         if ($v['state'] === 'actual' && empty($v['author_id'])) {
             throw ValidationException::withMessages(['author_id' => 'Укажите, кто совершил операцию.']);
@@ -63,6 +64,7 @@ class FinanceController extends Controller
             throw ValidationException::withMessages(['category_id' => 'Выберите активную категорию нужного типа.']);
         }
         $v['amount_cents'] = Money::cents($v['amount']);
+        $v['date_confirmed'] = $v['state'] === 'actual' || ($v['date_confirmed'] ?? ($entry?->exists && $entry->date->format('Y-m-d') === $v['date'] ? $entry->date_confirmed : true));
         unset($v['amount']);
         if ($v['amount_cents'] <= 0) {
             throw ValidationException::withMessages(['amount' => 'Сумма должна быть больше нуля.']);
@@ -114,7 +116,7 @@ class FinanceController extends Controller
             Entry::with('category', 'author')->orderBy('date')->chunk(500, function ($rows) use ($f) {
                 foreach ($rows as $e) {
                     $safe = fn ($s) => preg_match('/^[=+\-@\t\r]/u', (string) $s) ? "'".$s : $s;
-                    fputcsv($f, [$e->date->format('Y-m-d'), $e->kind === 'income' ? 'Доход' : 'Расход', $e->state === 'actual' ? 'Факт' : 'План', $safe($e->title), $safe($e->category->name), $safe($e->author?->name ?? 'Общие'), number_format($e->amount_cents / 100, 2, ',', ''), $safe($e->note)], ';', '"', '');
+                    fputcsv($f, [$e->date->format($e->date_confirmed ? 'Y-m-d' : 'Y-m'), $e->kind === 'income' ? 'Доход' : 'Расход', $e->state === 'actual' ? 'Факт' : 'План', $safe($e->title), $safe($e->category->name), $safe($e->author?->name ?? 'Общие'), number_format($e->amount_cents / 100, 2, ',', ''), $safe($e->note)], ';', '"', '');
                 }
             });
             fclose($f);

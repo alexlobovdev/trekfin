@@ -77,17 +77,15 @@ export default function Budget({
           <strong>{money(t.planned_expense)}</strong>
         </div>
         <div className="pink-stat">
-          <span>Останется по плану</span>
-          <strong>
-            {money(opening + t.planned_income - t.planned_expense)}
-          </strong>
+          <span>Остаток с учётом факта</span>
+          <strong>{money(t.forecast)}</strong>
         </div>
       </div>
       <div className="info-banner">
         <CalendarDays size={20} />
         <p>
-          План и факт считаются отдельно. Подтвердите платёж галочкой — укажите
-          сумму, дату и того, кто его совершил.
+          Дополнительные доходы и расходы сразу меняют остаток. Подтвердите
+          платёж галочкой, чтобы учесть его один раз — в плане и в факте.
         </p>
       </div>
       {error && <p className="error">{error}</p>}

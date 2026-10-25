@@ -18,11 +18,11 @@ Route::prefix('api')->group(function () {
         return ['status' => 'ok'];
     });
     Route::get('csrf', [AuthController::class, 'csrf']);
-    Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+    Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1,login:');
     Route::middleware('auth')->group(function () {
         Route::get('me', [AuthController::class, 'me']);
         Route::post('logout', [AuthController::class, 'logout']);
-        Route::put('password', [AuthController::class, 'password'])->middleware('throttle:5,1');
+        Route::put('password', [AuthController::class, 'password'])->middleware('throttle:5,1,password:');
         Route::middleware([RequirePasswordChange::class, 'throttle:120,1'])->group(function () {
             Route::get('bootstrap', [FinanceController::class, 'bootstrap']);
             Route::get('month', [FinanceController::class, 'month']);
@@ -48,7 +48,9 @@ Route::prefix('api')->group(function () {
             Route::get('insight', InsightController::class);
             Route::post('push', [PushController::class, 'subscribe']);
             Route::delete('push', [PushController::class, 'unsubscribe']);
-            Route::post('push/preview', [PushController::class, 'preview'])->middleware('throttle:3,1');
+            Route::post('push/preview', [PushController::class, 'preview'])->middleware('throttle:3,1,push-preview:');
+            Route::get('push/recipient', [PushController::class, 'recipient']);
+            Route::post('push/send', [PushController::class, 'send'])->middleware('throttle:5,1,push-send:');
         });
     });
 });

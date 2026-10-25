@@ -13,11 +13,15 @@ import {
   Settings as SettingsIcon,
   Wallet,
   Handshake,
+  Send,
+  PiggyBank,
 } from "lucide-react";
 import { api, ApiError, invalidateCsrf, today } from "./api";
 import type { Bootstrap, Entry, Insight, Month, User } from "./types";
 import { Avatar, MonthPicker } from "./components/ui";
 import EntryForm, { type EntryDraft } from "./components/EntryForm";
+import PushMessage from "./components/PushMessage";
+import Calendar from "./pages/Calendar";
 import Auth from "./pages/Auth";
 import Overview from "./pages/Overview";
 import Budget from "./pages/Budget";
@@ -27,7 +31,8 @@ import Debts from "./pages/Debts";
 import Settings from "./pages/Settings";
 const pages = [
   { id: "overview", label: "Обзор", icon: House },
-  { id: "budget", label: "Бюджет", icon: CalendarDays },
+  { id: "budget", label: "Бюджет", icon: PiggyBank },
+  { id: "calendar", label: "Календарь трат", icon: CalendarDays },
   { id: "transactions", label: "Операции", icon: Wallet },
   { id: "recurring", label: "Регулярные платежи", icon: Repeat2 },
   { id: "debts", label: "Долги и возвраты", icon: Handshake },
@@ -36,6 +41,7 @@ const pages = [
 const descriptions: Record<string, string> = {
   overview: "Всё важное о ваших деньгах — в одном месте",
   budget: "Спокойно планируем, осознанно тратим",
+  calendar: "Траты по дням, важные платежи и вклад каждого",
   transactions: "Доходы, расходы и вклад каждого",
   recurring: "Один раз настроили — каждый месяц под рукой",
   debts: "Понятные суммы и прозрачная история",
@@ -51,7 +57,14 @@ export default function App() {
     [insight, setInsight] = useState<Insight | null>(null),
     [draft, setDraft] = useState<EntryDraft | null>(null),
     [error, setError] = useState(""),
-    [loading, setLoading] = useState(false);
+    [loading, setLoading] = useState(false),
+    [calendarDay, setCalendarDay] = useState(today()),
+    [pushOpen, setPushOpen] = useState(false);
+  const calendarDate = calendarDay.startsWith(month)
+    ? calendarDay
+    : month === today().slice(0, 7)
+      ? today()
+      : month + "-01";
   const sequence = useRef(0);
   useEffect(() => {
     api<{ user: User }>("me")
@@ -111,8 +124,14 @@ export default function App() {
   };
   const add = (planned = false) =>
     setDraft({
-      state: planned ? "planned" : "actual",
+      state:
+        planned || (page === "calendar" && calendarDate > today())
+          ? "planned"
+          : "actual",
       author_id: planned ? null : user!.id,
+      ...(page === "calendar"
+        ? { date: calendarDate, date_confirmed: true }
+        : {}),
     });
   const pay = (e: Entry) => setDraft({ ...e, paying: true });
   const logout = async () => {
@@ -222,6 +241,15 @@ export default function App() {
             </div>
             <span className="top-divider" />
             <button
+              className="send-push-button"
+              aria-label="Отправить пуш"
+              title="Отправить пуш второму участнику"
+              onClick={() => setPushOpen(true)}
+            >
+              <Send size={17} />
+              <span>Отправить пуш</span>
+            </button>
+            <button
               className="icon-button notification-button"
               aria-label="Настройки уведомлений"
               onClick={() => navigate("settings")}
@@ -238,7 +266,11 @@ export default function App() {
             </button>
           </div>
         </header>
-        <div className="content">
+        <div
+          className={
+            "content " + (page === "calendar" ? "calendar-content" : "")
+          }
+        >
           <div className="page-heading">
             <div>
               <div className="eyebrow">
@@ -253,9 +285,9 @@ export default function App() {
               <p>{descriptions[page]}</p>
             </div>
             <div className="heading-actions">
-              {["overview", "budget", "transactions"].includes(page) && (
-                <MonthPicker month={month} onChange={setMonth} />
-              )}
+              {["overview", "budget", "transactions", "calendar"].includes(
+                page,
+              ) && <MonthPicker month={month} onChange={setMonth} />}
               <button
                 className="button primary add-main"
                 onClick={() => add(page === "budget")}
@@ -310,6 +342,25 @@ export default function App() {
                   onAdd={() => add()}
                 />
               )}{" "}
+              {page === "calendar" && (
+                <Calendar
+                  month={snapshot}
+                  data={data}
+                  selected={calendarDate}
+                  onSelect={setCalendarDay}
+                  onMonth={setMonth}
+                  onEdit={setDraft}
+                  onPay={pay}
+                  onAdd={(date, author) =>
+                    setDraft({
+                      date,
+                      date_confirmed: true,
+                      state: date > today() ? "planned" : "actual",
+                      author_id: author ?? user.id,
+                    })
+                  }
+                />
+              )}
               {page === "recurring" && (
                 <Recurring data={data} onRefresh={refresh} />
               )}{" "}
@@ -345,8 +396,15 @@ export default function App() {
           className={page === "budget" ? "active" : ""}
           onClick={() => navigate("budget")}
         >
-          <CalendarDays size={21} />
+          <PiggyBank size={21} />
           <span>Бюджет</span>
+        </button>
+        <button
+          className={page === "calendar" ? "active" : ""}
+          onClick={() => navigate("calendar")}
+        >
+          <CalendarDays size={21} />
+          <span>Календарь</span>
         </button>
         <button
           className="mobile-add"
@@ -385,6 +443,7 @@ export default function App() {
           }}
         />
       )}
+      {pushOpen && <PushMessage onClose={() => setPushOpen(false)} />}
     </div>
   );
 }

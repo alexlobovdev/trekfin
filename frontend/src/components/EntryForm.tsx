@@ -52,6 +52,9 @@ export default function EntryForm({
           (month === today().slice(0, 7) ? today() : month + "-01"),
   );
   const [note, setNote] = useState(paying ? "" : draft.note || "");
+  const [dateConfirmed, setDateConfirmed] = useState(
+    draft.date_confirmed ?? true,
+  );
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [confirmDelete, setConfirmDelete] = useState(false);
@@ -77,6 +80,7 @@ export default function EntryForm({
           author_id: author ? Number(author) : null,
           amount: amount.replace(",", "."),
           date,
+          date_confirmed: paying || state === "actual" || dateConfirmed,
           note,
           plan_id: paying ? draft.id : draft.plan_id || null,
         },
@@ -184,11 +188,29 @@ export default function EntryForm({
             <input
               required
               type="date"
-              value={date}
+              disabled={state === "planned" && !paying && !dateConfirmed}
+              value={
+                state === "planned" && !paying && !dateConfirmed ? "" : date
+              }
               onChange={(e) => setDate(e.target.value)}
             />
           </label>
         </div>
+        {state === "planned" && !paying && (
+          <label className="check-label">
+            <input
+              type="checkbox"
+              checked={dateConfirmed}
+              onChange={(e) => setDateConfirmed(e.target.checked)}
+            />
+            Точная дата платежа известна
+          </label>
+        )}
+        {state === "planned" && !paying && !dateConfirmed && (
+          <p className="form-hint">
+            Платёж останется в бюджете месяца без привязки к конкретному дню.
+          </p>
+        )}
         <fieldset className="person-fieldset">
           <legend>
             {state === "planned" && !paying

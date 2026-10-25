@@ -21,11 +21,15 @@ class BudgetService
         });
         $sum = fn ($state, $kind) => (int) $entries->where('state', $state)->where('kind', $kind)->sum('amount_cents');
         $plan = MonthPlan::where('month', $month)->first();
+        $income = $sum('actual', 'income');
+        $expense = $sum('actual', 'expense');
+        $remaining = fn ($kind) => (int) $entries->where('state', 'planned')->where('kind', $kind)->sum(fn ($e) => max(0, $e->amount_cents - $e->paid_cents));
         $history = Entry::where('state', 'actual')->where('date', '<', $date->toDateString())->selectRaw("COALESCE(SUM(CASE WHEN kind='income' THEN amount_cents ELSE -amount_cents END),0) as balance")->value('balance');
 
         return [
             'month' => $month, 'plan' => $plan, 'entries' => $entries,
-            'totals' => ['planned_income' => $sum('planned', 'income'), 'planned_expense' => $sum('planned', 'expense'), 'income' => $sum('actual', 'income'), 'expense' => $sum('actual', 'expense'), 'balance' => (int) $history + $sum('actual', 'income') - $sum('actual', 'expense')],
+            'totals' => ['planned_income' => $sum('planned', 'income'), 'planned_expense' => $sum('planned', 'expense'), 'income' => $income, 'expense' => $expense, 'balance' => (int) $history + $income - $expense,
+                'forecast' => ($plan?->opening_cents ?? 0) + $income - $expense + $remaining('income') - $remaining('expense')],
             'by_author' => User::select('id', 'name')->get()->map(fn ($u) => [...$u->toArray(), 'income' => (int) $entries->where('state', 'actual')->where('kind', 'income')->where('author_id', $u->id)->sum('amount_cents'), 'expense' => (int) $entries->where('state', 'actual')->where('kind', 'expense')->where('author_id', $u->id)->sum('amount_cents')]),
         ];
     }

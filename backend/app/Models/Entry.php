@@ -11,7 +11,7 @@ class Entry extends Model
 
     protected function casts(): array
     {
-        return ['amount_cents' => 'integer', 'date' => 'date:Y-m-d'];
+        return ['amount_cents' => 'integer', 'date' => 'date:Y-m-d', 'date_confirmed' => 'boolean'];
     }
 
     public function category(): BelongsTo

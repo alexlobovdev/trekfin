@@ -22,6 +22,7 @@ export type Entry = {
   amount_cents: number;
   paid_cents: number;
   date: string;
+  date_confirmed: boolean;
   note: string | null;
   plan_id: number | null;
   source_key: string | null;
@@ -53,6 +54,7 @@ export type Month = {
     income: number;
     expense: number;
     balance: number;
+    forecast: number;
   };
   by_author: (Person & { income: number; expense: number })[];
 };

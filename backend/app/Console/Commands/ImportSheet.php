@@ -79,7 +79,7 @@ class ImportSheet extends Command
                 $opening = $number === 10 ? $this->cents($c['B1']) : 0;
                 MonthPlan::create(['month' => $month, 'opening_cents' => $opening, 'note' => 'Из листа «'.$sheet['name'].'». Год 2026 определён по датам листа долга.']);
                 $create = function (string $label, int $amount, string $key, string $kind = 'expense', ?int $category = null, ?string $note = null) use ($alex, $month): Entry {
-                    return Entry::create(['title' => $label, 'category_id' => $category ?? $this->category($label, $kind)->id, 'author_id' => null, 'created_by' => $alex->id, 'kind' => $kind, 'state' => 'planned', 'amount_cents' => $amount, 'date' => $month.'-01', 'source_key' => $key, 'note' => $note ?? 'Импортированный план. Факт ещё не подтверждён.']);
+                    return Entry::create(['title' => $label, 'category_id' => $category ?? $this->category($label, $kind)->id, 'author_id' => null, 'created_by' => $alex->id, 'kind' => $kind, 'state' => 'planned', 'amount_cents' => $amount, 'date' => $month.'-01', 'date_confirmed' => false, 'source_key' => $key, 'note' => $note ?? 'Импортированный план. Факт ещё не подтверждён.']);
                 };
                 if ($number !== 10) {
                     $create('Основной доход', $this->cents($c['B1']), "import:{$month}:income", 'income');

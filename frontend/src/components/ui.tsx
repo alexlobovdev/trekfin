@@ -197,7 +197,7 @@ export function EntryRow({
           <span>
             {entry.category.name}
             <i />{" "}
-            {planned && entry.source_key?.startsWith("import:")
+            {planned && !entry.date_confirmed
               ? "Этот месяц"
               : dateLabel(entry.date)}
           </span>

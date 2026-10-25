@@ -26,9 +26,15 @@ Before deployments and daily at 03:15 Yekaterinburg, PostgreSQL is dumped to `/v
 
 Safari Web Push uses VAPID and a service worker. Add Trekfin to Home Screen (iOS 16.4+) or Dock, then enable notifications in Settings. Morning reminders: 09:00; evening: 21:00 Yekaterinburg. Device permission can only be granted by the person using the device. Push delivery to a real device requires that subscription. Financial API responses are not cached by the service worker.
 
+The header's Send Push button sends a message of up to 500 characters to the other household member's subscribed devices. The sender's name is included; sending is limited to five requests per minute. Push service acceptance is reported separately from device delivery.
+
 Tips are local Russian editorial text; currency rates are loaded from the free Central Bank XML API with caching and a stale fallback. API failure does not prevent bookkeeping.
 
 Money is stored as integer kopeks. Each actual operation has an author and records who created/last changed it. Archived categories remain in history. Debt repayments within the couple are tracked separately from household income and expenses. CSV export escapes spreadsheet formulas.
+
+The monthly forecast is opening funds plus actual income minus actual expenses, plus remaining planned income minus remaining planned expenses. Linked confirmations reduce the remaining plan, avoiding double counting. Both Overview and Budget use the server's forecast.
+
+The expense calendar separates actual spending from unpaid dated plans and supports author filters. Imported monthly plans have no confirmed day until a person assigns one; undated plans stay in the monthly budget and do not trigger day-specific reminders.
 
 ## Development
 

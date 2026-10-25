@@ -27,9 +27,7 @@ export default function Overview({
   onAdd: () => void;
   onNavigate: (s: string) => void;
 }) {
-  const t = month.totals,
-    forecast =
-      (month.plan?.opening_cents || 0) + t.planned_income - t.planned_expense;
+  const t = month.totals;
   const plans = month.entries.filter(
       (e) => e.state === "planned" && e.kind === "expense",
     ),
@@ -69,10 +67,11 @@ export default function Overview({
         <section className="balance-card">
           <div className="balance-copy">
             <span className="balance-label">
-              Свободно по плану <span className="tiny-pill">Общий бюджет</span>
+              Остаток на конец месяца{" "}
+              <span className="tiny-pill">План + факт</span>
             </span>
-            <strong>{money(forecast)}</strong>
-            <p>После всех запланированных расходов</p>
+            <strong>{money(t.forecast)}</strong>
+            <p>С учётом реальных операций и оставшихся платежей</p>
             <button
               onClick={() => onNavigate("budget")}
               className="balance-link"
@@ -201,7 +200,7 @@ export default function Overview({
                   <div>
                     <strong>{e.title}</strong>
                     <span>
-                      {e.source_key?.startsWith("import:")
+                      {!e.date_confirmed
                         ? "В этом месяце"
                         : e.date.slice(8, 10) + " числа"}
                     </span>
