@@ -11,6 +11,7 @@ import {
   Repeat2,
   ShieldCheck,
   Smartphone,
+  Target,
   Trash2,
 } from "lucide-react";
 import { api, monthLabel, money } from "../api";
@@ -101,7 +102,11 @@ export default function Settings({
         </button>
         <button onClick={() => onNavigate("debts")}>
           <Handshake size={20} />
-          Долги и возвраты
+          Долги и кредиты
+        </button>
+        <button onClick={() => onNavigate("savings")}>
+          <Target size={20} />
+          Накопления
         </button>
       </div>
       <div className="tabs">

@@ -26,6 +26,9 @@ export type Entry = {
   note: string | null;
   plan_id: number | null;
   source_key: string | null;
+  debt_id: number | null;
+  savings_goal_id: number | null;
+  debt?: { id: number; title: string } | null;
 };
 export type Recurring = {
   id: number;
@@ -55,6 +58,7 @@ export type Month = {
     expense: number;
     balance: number;
     forecast: number;
+    savings: number;
   };
   by_author: (Person & { income: number; expense: number })[];
 };
@@ -77,6 +81,8 @@ export type Bootstrap = {
   months: MonthPlan[];
   push_key: string;
   import: ImportReport | null;
+  debts: Debt[];
+  savings: SavingsGoal[];
 };
 export type Debt = {
   id: number;
@@ -84,17 +90,47 @@ export type Debt = {
   amount_cents: number;
   paid_cents: number;
   note: string;
-  repayments: {
-    id: number;
-    amount_cents: number;
-    date: string | null;
-    note: string;
-  }[];
+  type: "loan" | "debt" | "internal";
+  creditor: string | null;
+  author_id: number;
+  initial_paid_cents: number;
+  monthly_payment_cents: number;
+  payment_day: number | null;
+  due_date: string | null;
+  archived: boolean;
+  repayments: MoneyRecord[];
+  entries: Entry[];
+};
+export type MoneyRecord = {
+  id: number;
+  amount_cents: number;
+  date: string | null;
+  author_id: number | null;
+  created_by: number;
+  note: string | null;
+  kind?: Kind;
+  plan_id?: number | null;
+};
+export type SavingsGoal = {
+  id: number;
+  title: string;
+  target_cents: number;
+  opening_cents: number;
+  saved_cents: number;
+  color: string;
+  icon: string;
+  due_date: string | null;
+  note: string | null;
+  archived: boolean;
+  movements: MoneyRecord[];
 };
 export type Insight = {
   title: string;
   body: string;
   source: string;
   link: string;
+  section: string;
+  updated: string | null;
+  live: boolean;
   rates: { date: string; values: Record<string, number> } | null;
 };

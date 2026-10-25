@@ -9,6 +9,7 @@ export default function EntryForm({
   data,
   userId,
   month,
+  plans,
   onClose,
   onSaved,
 }: {
@@ -16,6 +17,7 @@ export default function EntryForm({
   data: Bootstrap;
   userId: number;
   month: string;
+  plans: Entry[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -45,6 +47,11 @@ export default function EntryForm({
       : "",
   );
   const [title, setTitle] = useState(draft.title || "");
+  const [debt, setDebt] = useState(String(draft.debt_id || ""));
+  const [savings, setSavings] = useState(String(draft.savings_goal_id || ""));
+  const linkedSaving =
+    !!draft.savings_goal_id && (draft.state === "actual" || paying);
+  const [linkedPlan, setLinkedPlan] = useState(String(draft.plan_id || ""));
   const [date, setDate] = useState(
     paying
       ? today()
@@ -60,6 +67,9 @@ export default function EntryForm({
     [confirmDelete, setConfirmDelete] = useState(false);
   const changeKind = (k: Kind) => {
     setKind(k);
+    setDebt("");
+    setSavings("");
+    setLinkedPlan("");
     setCategory(
       String(data.categories.find((c) => c.active && c.kind === k)?.id || ""),
     );
@@ -82,7 +92,9 @@ export default function EntryForm({
           date,
           date_confirmed: paying || state === "actual" || dateConfirmed,
           note,
-          plan_id: paying ? draft.id : draft.plan_id || null,
+          plan_id: paying ? draft.id : linkedPlan ? Number(linkedPlan) : null,
+          debt_id: kind === "expense" && debt ? Number(debt) : null,
+          savings_goal_id: savings ? Number(savings) : null,
         },
       );
       onSaved();
@@ -120,7 +132,7 @@ export default function EntryForm({
           <button
             type="button"
             className={kind === "expense" ? "selected" : ""}
-            disabled={paying}
+            disabled={paying || linkedSaving}
             onClick={() => changeKind("expense")}
           >
             <ArrowUpRight size={16} />
@@ -129,13 +141,76 @@ export default function EntryForm({
           <button
             type="button"
             className={kind === "income" ? "selected" : ""}
-            disabled={paying}
+            disabled={paying || linkedSaving}
             onClick={() => changeKind("income")}
           >
             <ArrowDownLeft size={16} />
             Доход
           </button>
         </div>
+        {kind === "expense" &&
+          !savings &&
+          data.debts.some((d) => d.type !== "internal") && (
+            <label>
+              В счёт долга или кредита
+              <select
+                value={debt}
+                disabled={paying && !!draft.debt_id}
+                onChange={(e) => {
+                  setDebt(e.target.value);
+                  setLinkedPlan("");
+                }}
+              >
+                <option value="">Обычный расход</option>
+                {data.debts
+                  .filter(
+                    (d) =>
+                      d.type !== "internal" &&
+                      (!d.archived || String(d.id) === debt),
+                  )
+                  .map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.title} · осталось{" "}
+                      {(d.amount_cents - d.paid_cents) / 100} ₽
+                    </option>
+                  ))}
+              </select>
+            </label>
+          )}
+        {(debt || savings) && state === "actual" && !paying && !editing && (
+          <label>
+            Связать с плановым платежом
+            <select
+              value={linkedPlan}
+              onChange={(e) => {
+                setLinkedPlan(e.target.value);
+                const p = plans.find((p) => String(p.id) === e.target.value);
+                if (p) setCategory(String(p.category_id));
+              }}
+            >
+              <option value="">Вне плана — уменьшить свободный остаток</option>
+              {plans
+                .filter(
+                  (p) =>
+                    p.category_id === Number(category) &&
+                    (!p.debt_id || String(p.debt_id) === debt) &&
+                    (!p.savings_goal_id ||
+                      String(p.savings_goal_id) === savings) &&
+                    p.paid_cents < p.amount_cents,
+                )
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.title} · остаток {(p.amount_cents - p.paid_cents) / 100}{" "}
+                    ₽
+                  </option>
+                ))}
+            </select>
+            <span className="form-hint">
+              Выберите платёж из бюджета, если он уже учтён в плане — тогда
+              остаток не уменьшится повторно.
+            </span>
+          </label>
+        )}
         <label className="amount-field">
           Сумма, ₽
           <input
@@ -167,9 +242,13 @@ export default function EntryForm({
             Категория
             <select
               required
-              disabled={paying}
+              disabled={paying || linkedSaving}
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e) => {
+                setCategory(e.target.value);
+                if (!linkedSaving) setSavings("");
+                setLinkedPlan("");
+              }}
             >
               {data.categories
                 .filter(
@@ -196,6 +275,38 @@ export default function EntryForm({
             />
           </label>
         </div>
+        {["Отложенное", "Возврат из накоплений"].includes(
+          data.categories.find((c) => c.id === Number(category))?.name || "",
+        ) &&
+          data.savings.length > 0 && (
+            <label>
+              Цель накоплений
+              <select
+                value={savings}
+                disabled={linkedSaving}
+                onChange={(e) => {
+                  setSavings(e.target.value);
+                  if (e.target.value) setDebt("");
+                  setLinkedPlan("");
+                }}
+              >
+                <option value="">Без привязки к цели</option>
+                {data.savings
+                  .filter((g) => !g.archived || String(g.id) === savings)
+                  .map((g) => (
+                    <option value={g.id} key={g.id}>
+                      {g.title}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          )}
+        {linkedSaving && (
+          <p className="form-hint">
+            Запись связана с целью накоплений. Изменение суммы обновит её
+            прогресс.
+          </p>
+        )}
         {state === "planned" && !paying && (
           <label className="check-label">
             <input

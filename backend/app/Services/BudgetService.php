@@ -14,7 +14,7 @@ class BudgetService
     public function month(string $month): array
     {
         $date = CarbonImmutable::createFromFormat('!Y-m', $month);
-        $entries = Entry::with(['category', 'author'])->whereBetween('date', [$date->toDateString(), $date->endOfMonth()->toDateString()])->orderByDesc('date')->orderByDesc('id')->get();
+        $entries = Entry::with(['category', 'author', 'debt'])->whereBetween('date', [$date->toDateString(), $date->endOfMonth()->toDateString()])->orderByDesc('date')->orderByDesc('id')->get();
         $allPayments = Entry::where('state', 'actual')->whereIn('plan_id', $entries->where('state', 'planned')->pluck('id'))->selectRaw('plan_id, SUM(amount_cents) as paid')->groupBy('plan_id')->pluck('paid', 'plan_id');
         $entries->each(function ($e) use ($allPayments) {
             $e->setAttribute('paid_cents', (int) ($allPayments[$e->id] ?? 0));
@@ -23,13 +23,14 @@ class BudgetService
         $plan = MonthPlan::where('month', $month)->first();
         $income = $sum('actual', 'income');
         $expense = $sum('actual', 'expense');
+        $savings = (int) $entries->where('state', 'actual')->whereNotNull('savings_goal_id')->sum(fn ($e) => $e->kind === 'expense' ? $e->amount_cents : -$e->amount_cents);
         $remaining = fn ($kind) => (int) $entries->where('state', 'planned')->where('kind', $kind)->sum(fn ($e) => max(0, $e->amount_cents - $e->paid_cents));
         $history = Entry::where('state', 'actual')->where('date', '<', $date->toDateString())->selectRaw("COALESCE(SUM(CASE WHEN kind='income' THEN amount_cents ELSE -amount_cents END),0) as balance")->value('balance');
 
         return [
             'month' => $month, 'plan' => $plan, 'entries' => $entries,
             'totals' => ['planned_income' => $sum('planned', 'income'), 'planned_expense' => $sum('planned', 'expense'), 'income' => $income, 'expense' => $expense, 'balance' => (int) $history + $income - $expense,
-                'forecast' => ($plan?->opening_cents ?? 0) + $income - $expense + $remaining('income') - $remaining('expense')],
+                'savings' => $savings, 'forecast' => ($plan?->opening_cents ?? 0) + $income - $expense + $remaining('income') - $remaining('expense')],
             'by_author' => User::select('id', 'name')->get()->map(fn ($u) => [...$u->toArray(), 'income' => (int) $entries->where('state', 'actual')->where('kind', 'income')->where('author_id', $u->id)->sum('amount_cents'), 'expense' => (int) $entries->where('state', 'actual')->where('kind', 'expense')->where('author_id', $u->id)->sum('amount_cents')]),
         ];
     }

@@ -15,9 +15,10 @@ import {
   Handshake,
   Send,
   PiggyBank,
+  Target,
 } from "lucide-react";
 import { api, ApiError, invalidateCsrf, today } from "./api";
-import type { Bootstrap, Entry, Insight, Month, User } from "./types";
+import type { Bootstrap, Debt, Entry, Insight, Month, User } from "./types";
 import { Avatar, MonthPicker } from "./components/ui";
 import EntryForm, { type EntryDraft } from "./components/EntryForm";
 import PushMessage from "./components/PushMessage";
@@ -28,6 +29,7 @@ import Budget from "./pages/Budget";
 import Transactions from "./pages/Transactions";
 import Recurring from "./pages/Recurring";
 import Debts from "./pages/Debts";
+import Savings from "./pages/Savings";
 import Settings from "./pages/Settings";
 const pages = [
   { id: "overview", label: "Обзор", icon: House },
@@ -35,7 +37,8 @@ const pages = [
   { id: "calendar", label: "Календарь трат", icon: CalendarDays },
   { id: "transactions", label: "Операции", icon: Wallet },
   { id: "recurring", label: "Регулярные платежи", icon: Repeat2 },
-  { id: "debts", label: "Долги и возвраты", icon: Handshake },
+  { id: "debts", label: "Долги и кредиты", icon: Handshake },
+  { id: "savings", label: "Накопления", icon: Target },
   { id: "settings", label: "Настройки", icon: SettingsIcon },
 ];
 const descriptions: Record<string, string> = {
@@ -45,6 +48,7 @@ const descriptions: Record<string, string> = {
   transactions: "Доходы, расходы и вклад каждого",
   recurring: "Один раз настроили — каждый месяц под рукой",
   debts: "Понятные суммы и прозрачная история",
+  savings: "Приближаем мечты, отмечаем каждый шаг",
   settings: "Пусть Trekfin будет удобен именно вам",
 };
 export default function App() {
@@ -134,6 +138,25 @@ export default function App() {
         : {}),
     });
   const pay = (e: Entry) => setDraft({ ...e, paying: true });
+  const payDebt = (d: Debt) =>
+    setDraft({
+      state: "actual",
+      kind: "expense",
+      debt_id: d.id,
+      title: "Платёж: " + d.title,
+      author_id: d.author_id,
+      date: today(),
+      amount_cents: Math.min(
+        d.monthly_payment_cents || d.amount_cents - d.paid_cents,
+        d.amount_cents - d.paid_cents,
+      ),
+      category_id: data?.categories.find(
+        (c) =>
+          c.active &&
+          c.kind === "expense" &&
+          c.name === (d.type === "loan" ? "Кредиты" : "Долги"),
+      )?.id,
+    });
   const logout = async () => {
     try {
       await api("logout", "POST");
@@ -288,15 +311,19 @@ export default function App() {
               {["overview", "budget", "transactions", "calendar"].includes(
                 page,
               ) && <MonthPicker month={month} onChange={setMonth} />}
-              <button
-                className="button primary add-main"
-                onClick={() => add(page === "budget")}
-              >
-                <Plus size={18} />
-                <span>
-                  {page === "budget" ? "Добавить в план" : "Добавить операцию"}
-                </span>
-              </button>
+              {!["debts", "savings"].includes(page) && (
+                <button
+                  className="button primary add-main"
+                  onClick={() => add(page === "budget")}
+                >
+                  <Plus size={18} />
+                  <span>
+                    {page === "budget"
+                      ? "Добавить в план"
+                      : "Добавить операцию"}
+                  </span>
+                </button>
+              )}
             </div>
           </div>
           {error && (
@@ -364,7 +391,23 @@ export default function App() {
               {page === "recurring" && (
                 <Recurring data={data} onRefresh={refresh} />
               )}{" "}
-              {page === "debts" && <Debts />}{" "}
+              {page === "debts" && (
+                <Debts
+                  data={data}
+                  userId={user.id}
+                  onRefresh={refresh}
+                  onEdit={setDraft}
+                  onPay={payDebt}
+                />
+              )}{" "}
+              {page === "savings" && (
+                <Savings
+                  data={data}
+                  month={snapshot}
+                  userId={user.id}
+                  onRefresh={refresh}
+                />
+              )}{" "}
               {page === "settings" && (
                 <Settings
                   data={data}
@@ -422,7 +465,9 @@ export default function App() {
         </button>
         <button
           className={
-            ["settings", "recurring", "debts"].includes(page) ? "active" : ""
+            ["settings", "recurring", "debts", "savings"].includes(page)
+              ? "active"
+              : ""
           }
           onClick={() => navigate("settings")}
         >
@@ -436,6 +481,11 @@ export default function App() {
           data={data}
           userId={user.id}
           month={month}
+          plans={
+            snapshot?.entries.filter(
+              (e) => e.state === "planned" && e.kind === "expense",
+            ) || []
+          }
           onClose={() => setDraft(null)}
           onSaved={() => {
             setDraft(null);

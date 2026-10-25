@@ -7,6 +7,7 @@ use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\InsightController;
 use App\Http\Controllers\PushController;
 use App\Http\Controllers\RecurringController;
+use App\Http\Controllers\SavingsController;
 use App\Http\Middleware\RequirePasswordChange;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -37,7 +38,17 @@ Route::prefix('api')->group(function () {
             Route::put('recurrings/{recurring}', [RecurringController::class, 'save']);
             Route::delete('recurrings/{recurring}', [RecurringController::class, 'archive']);
             Route::get('debts', [DebtController::class, 'index']);
+            Route::post('debts', [DebtController::class, 'save']);
+            Route::put('debts/{debt}', [DebtController::class, 'save']);
             Route::post('debts/{debt}/repay', [DebtController::class, 'repay']);
+            Route::put('debts/{debt}/repay/{repayment}', [DebtController::class, 'repay']);
+            Route::delete('debts/{debt}/repay/{repayment}', [DebtController::class, 'removeRepayment']);
+            Route::get('savings', [SavingsController::class, 'index']);
+            Route::post('savings', [SavingsController::class, 'save']);
+            Route::put('savings/{goal}', [SavingsController::class, 'save']);
+            Route::post('savings/{goal}/movements', [SavingsController::class, 'move']);
+            Route::put('savings/{goal}/movements/{movement}', [SavingsController::class, 'move']);
+            Route::delete('savings/{goal}/movements/{movement}', [SavingsController::class, 'removeMovement']);
             Route::get('export', [FinanceController::class, 'export']);
             Route::get('import-source', function () {
                 $source = DB::table('imports')->latest('id')->value('source');

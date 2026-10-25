@@ -1,15 +1,9 @@
-import {
-  ArrowRight,
-  ArrowUpRight,
-  Check,
-  Heart,
-  Lightbulb,
-  Plus,
-  Sparkles,
-} from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, Heart, Plus } from "lucide-react";
 import { money } from "../api";
 import type { Bootstrap, Entry, Insight, Month } from "../types";
 import { Avatar, CategoryIcon, Empty, EntryRow, Stat } from "../components/ui";
+import TipCard from "../components/TipCard";
+import GoalsDashboard from "../components/GoalsDashboard";
 export default function Overview({
   month,
   data,
@@ -104,6 +98,7 @@ export default function Overview({
           detail={"В плане " + money(t.planned_expense)}
         />
       </div>
+      <GoalsDashboard data={data} month={month} onNavigate={onNavigate} />
       <div className="dashboard-grid">
         <section className="panel spending-panel">
           <div className="panel-title">
@@ -264,41 +259,7 @@ export default function Overview({
           )}
         </section>
         <div className="dashboard-side">
-          <section className="tip-card">
-            <div className="tip-top">
-              <span>
-                <Lightbulb size={17} />
-                СОВЕТ ДНЯ
-              </span>
-              <Sparkles size={20} strokeWidth={1.3} />
-            </div>
-            <h3>{insight?.title || "Маленькие шаги — общие планы"}</h3>
-            <p>
-              {insight?.body ||
-                "Записывайте расходы вместе, чтобы видеть полную картину вашего бюджета."}
-            </p>
-            <a
-              href={insight?.link || "https://fincult.info/"}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {insight?.source || "Совет Trekfin"} <ArrowUpRight size={13} />
-            </a>
-            {insight?.rates && (
-              <div className="rate-strip">
-                <span>Курсы ЦБ · {insight.rates.date}</span>
-                <div>
-                  {Object.entries(insight.rates.values).map(
-                    ([currency, rate]) => (
-                      <strong key={currency}>
-                        {currency} <span>{money(Math.round(rate * 100))}</span>
-                      </strong>
-                    ),
-                  )}
-                </div>
-              </div>
-            )}
-          </section>
+          <TipCard initial={insight} />
           <section className="panel couple-card">
             <div className="panel-title">
               <h2>Мы в этом вместе</h2>

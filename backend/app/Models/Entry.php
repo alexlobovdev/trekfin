@@ -23,4 +23,9 @@ class Entry extends Model
     {
         return $this->belongsTo(User::class, 'author_id')->select('id', 'name');
     }
+
+    public function debt(): BelongsTo
+    {
+        return $this->belongsTo(Debt::class)->select('id', 'title');
+    }
 }

@@ -200,6 +200,12 @@ export function EntryRow({
             {planned && !entry.date_confirmed
               ? "Этот месяц"
               : dateLabel(entry.date)}
+            {entry.debt && (
+              <>
+                <i />
+                {entry.debt.title}
+              </>
+            )}
           </span>
         </span>
       </button>
