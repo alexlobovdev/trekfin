@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use GuzzleHttp\Client;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Minishlink\WebPush\Subscription;
@@ -14,7 +15,7 @@ class PushService
         if (! config('services.webpush.private_key')) {
             return 0;
         }
-        $webpush = new WebPush(['VAPID' => ['subject' => config('services.webpush.subject'), 'publicKey' => config('services.webpush.public_key'), 'privateKey' => config('services.webpush.private_key')]], ['TTL' => 3600], 15);
+        $webpush = new WebPush(['VAPID' => ['subject' => config('services.webpush.subject'), 'publicKey' => config('services.webpush.public_key'), 'privateKey' => config('services.webpush.private_key')]], ['TTL' => 3600], client: new Client(['timeout' => 15, 'connect_timeout' => 5]));
         $subscriptions = DB::table('push_subscriptions')->when($userId, fn ($q) => $q->where('user_id', $userId))->get();
         foreach ($subscriptions as $s) {
             $webpush->queueNotification(Subscription::create(['endpoint' => $s->endpoint, 'publicKey' => $s->public_key, 'authToken' => $s->auth_token, 'contentEncoding' => $s->content_encoding]), json_encode($payload, JSON_UNESCAPED_UNICODE));
