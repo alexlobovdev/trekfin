@@ -285,6 +285,20 @@ export default function Overview({
             >
               {insight?.source || "Совет Trekfin"} <ArrowUpRight size={13} />
             </a>
+            {insight?.rates && (
+              <div className="rate-strip">
+                <span>Курсы ЦБ · {insight.rates.date}</span>
+                <div>
+                  {Object.entries(insight.rates.values).map(
+                    ([currency, rate]) => (
+                      <strong key={currency}>
+                        {currency} <span>{money(Math.round(rate * 100))}</span>
+                      </strong>
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
           </section>
           <section className="panel couple-card">
             <div className="panel-title">

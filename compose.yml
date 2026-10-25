@@ -15,6 +15,9 @@ x-app: &app
 services:
   app:
     <<: *app
+    networks:
+      internal:
+        aliases: [trekfin-php]
     mem_limit: 384m
     healthcheck:
       test: [CMD-SHELL, "php -r 'exit(@fsockopen(\"127.0.0.1\",9000)?0:1);'"]
