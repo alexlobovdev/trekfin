@@ -127,6 +127,9 @@ class FinanceController extends Controller
                 abort_if($v['state'] === 'actual' && $v['amount_cents'] > $debt->amount_cents - $debt->paid_cents + $previous, 422, 'Платёж превышает остаток долга. При необходимости измените общую сумму долга.');
             }
             $entity = $entry?->exists ? $entry : new Entry(['created_by' => $r->user()->id]);
+            if ($entity->recurring_id && ($entity->date->toDateString() !== $v['date'] || $entity->date_confirmed !== $v['date_confirmed'])) {
+                $v['recurring_date_overridden'] = true;
+            }
             $entity->fill([...$v, 'updated_by' => $r->user()->id])->save();
             if ($v['state'] === 'planned') {
                 MonthPlan::firstOrCreate(['month' => substr($v['date'], 0, 7)]);

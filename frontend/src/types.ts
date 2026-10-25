@@ -39,6 +39,8 @@ export type Entry = {
   date_confirmed: boolean;
   note: string | null;
   plan_id: number | null;
+  recurring_id: number | null;
+  recurring_date_overridden: boolean;
   source_key: string | null;
   debt_id: number | null;
   savings_goal_id: number | null;
@@ -72,6 +74,9 @@ export type Month = {
     income: number;
     expense: number;
     balance: number;
+    actual_opening: number;
+    remaining_income: number;
+    remaining_expense: number;
     planned_balance: number;
     forecast: number;
     savings: number;

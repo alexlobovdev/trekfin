@@ -97,10 +97,14 @@ export default function Budget({
         <div>
           <span>Факт на сегодня</span>
           <strong>{money(t.balance)}</strong>
+          <small>По проведённым операциям до сегодняшнего дня</small>
         </div>
         <div className="pink-stat">
           <span>Прогноз с учётом лимитов</span>
           <strong>{money(t.forecast)}</strong>
+          <small>
+            Ещё доходов: {money(t.remaining_income)} · расходов и лимитов: {money(t.remaining_expense)}
+          </small>
         </div>
       </div>
       <div className="info-banner">
@@ -108,11 +112,16 @@ export default function Budget({
         <p>
           Лимит категории уменьшается от фактических трат. Конкретный платёж
           подтверждайте галочкой — тогда он учитывается один раз.
+          {" "}Факт за месяц: доходы {money(t.income)} − расходы {money(t.expense)}.
+          {" "}Остаток до начала месяца: {money(t.actual_opening)}.
+          {t.remaining_income === 0 && t.remaining_expense === 0 && (
+            <> Все планы исполнены, лимиты израсходованы — прогноз совпадает с фактом за месяц.</>
+          )}
         </p>
       </div>
       {error && <p className="error">{error}</p>}
       <section className="panel">
-        <div className="panel-title">
+        <div className="panel-title budget-title">
           <div>
             <h2>Бюджет месяца</h2>
             <p>
@@ -123,9 +132,15 @@ export default function Budget({
               {ruCount(payments.length, "платёж", "платежа", "платежей")}
             </p>
           </div>
-          <button className="button secondary" onClick={onAdd}>
-            <Plus size={16} />В план
-          </button>
+          <div className="budget-actions">
+            <button className="button secondary" disabled={busy} onClick={generate}>
+              <Repeat2 size={16} />
+              {busy ? "Добавляем…" : "Регулярные платежи"}
+            </button>
+            <button className="button secondary" onClick={onAdd}>
+              <Plus size={16} />В план
+            </button>
+          </div>
         </div>
         {plans.length ? (
           <>
@@ -220,8 +235,8 @@ export default function Budget({
         <div>
           <h3>Начальный остаток в плане</h3>
           <p>
-            Используется для прогноза месяца. Фактический баланс меняется только
-            от реальных операций.
+            Используется для плана на конец месяца. Факт и прогноз учитывают
+            остаток предыдущих фактических операций.
           </p>
         </div>
         <form

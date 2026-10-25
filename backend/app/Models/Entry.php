@@ -11,7 +11,7 @@ class Entry extends Model
 
     protected function casts(): array
     {
-        return ['amount_cents' => 'integer', 'date' => 'date:Y-m-d', 'date_confirmed' => 'boolean'];
+        return ['amount_cents' => 'integer', 'date' => 'date:Y-m-d', 'date_confirmed' => 'boolean', 'recurring_date_overridden' => 'boolean'];
     }
 
     public function category(): BelongsTo

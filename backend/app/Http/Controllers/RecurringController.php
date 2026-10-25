@@ -5,11 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Recurring;
 use App\Services\Money;
+use App\Services\RecurringService;
 use Illuminate\Http\Request;
 
 class RecurringController extends Controller
 {
-    public function save(Request $r, ?Recurring $recurring = null)
+    public function save(Request $r, RecurringService $service, ?Recurring $recurring = null)
     {
         $v = $r->validate(['title' => 'required|string|max:120', 'category_id' => 'required|integer|exists:categories,id', 'author_id' => 'nullable|integer|exists:users,id', 'amount' => ['required', 'regex:/^\d{1,9}([.,]\d{1,2})?$/'], 'summer' => ['nullable', 'regex:/^\d{1,9}([.,]\d{1,2})?$/'], 'day' => 'required|integer|between:1,31', 'kind' => 'required|in:income,expense', 'active' => 'boolean', 'note' => 'nullable|string|max:2000']);
         $c = Category::findOrFail($v['category_id']);
@@ -22,10 +23,8 @@ class RecurringController extends Controller
             abort(422, 'Сумма должна быть больше нуля.');
         }
         unset($v['amount'],$v['summer']);
-        $e = $recurring?->exists ? $recurring : new Recurring;
-        $e->fill($v)->save();
 
-        return $e;
+        return $service->save($recurring ?? new Recurring, $v);
     }
 
     public function archive(Recurring $recurring)

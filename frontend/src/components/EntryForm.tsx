@@ -290,7 +290,7 @@ export default function EntryForm({
             </select>
           </label>
           <label>
-            Дата
+            {paying || state === "actual" ? "Дата фактической операции" : "Дата платежа в этом месяце"}
             <input
               required
               type="date"
@@ -302,6 +302,12 @@ export default function EntryForm({
             />
           </label>
         </div>
+        {draft.recurring_id && state === "planned" && !paying && (
+          <p className="form-hint">
+            Изменение даты перенесёт только этот платёж. День для остальных
+            месяцев задаётся в разделе «Регулярные платежи».
+          </p>
+        )}
         {limitCategory && (state === "actual" || paying) && (
           <p className="form-hint">
             {limitPlanned

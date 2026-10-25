@@ -16,7 +16,8 @@ class BudgetService
     {
         $date = CarbonImmutable::createFromFormat('!Y-m', $month);
         $entries = Entry::with(['category', 'author', 'debt'])->whereBetween('date', [$date->toDateString(), $date->endOfMonth()->toDateString()])->orderByDesc('date')->orderByDesc('id')->get();
-        $allPayments = Entry::where('state', 'actual')->whereIn('plan_id', $entries->where('state', 'planned')->pluck('id'))->selectRaw('plan_id, SUM(amount_cents) as paid')->groupBy('plan_id')->pluck('paid', 'plan_id');
+        $cutoff = min(now()->toDateString(), $date->endOfMonth()->toDateString());
+        $allPayments = Entry::where('state', 'actual')->where('date', '<=', $date->endOfMonth()->toDateString())->whereIn('plan_id', $entries->where('state', 'planned')->pluck('id'))->selectRaw('plan_id, SUM(amount_cents) as paid')->groupBy('plan_id')->pluck('paid', 'plan_id');
         $entries->each(function ($e) use ($allPayments) {
             $e->setAttribute('paid_cents', (int) ($allPayments[$e->id] ?? 0));
         });
@@ -38,12 +39,17 @@ class BudgetService
         $opening = (int) ($plan?->opening_cents ?? 0);
         $plannedIncome = $sum('planned', 'income');
         $plannedExpense = $sum('planned', 'expense');
+        $actualToday = $entries->where('state', 'actual')->filter(fn ($e) => $e->date->toDateString() <= $cutoff);
+        $balance = (int) $history + (int) $actualToday->where('kind', 'income')->sum('amount_cents') - (int) $actualToday->where('kind', 'expense')->sum('amount_cents');
+        $remainingIncome = $scheduled('income') + $limitLeft('income');
+        $remainingExpense = $scheduled('expense') + $limitLeft('expense');
 
         return [
             'month' => $month, 'plan' => $plan, 'entries' => $entries, 'categories' => $categories,
-            'totals' => ['planned_income' => $plannedIncome, 'planned_expense' => $plannedExpense, 'income' => $income, 'expense' => $expense, 'balance' => (int) $history + $income - $expense,
+            'totals' => ['planned_income' => $plannedIncome, 'planned_expense' => $plannedExpense, 'income' => $income, 'expense' => $expense, 'balance' => $balance, 'actual_opening' => (int) $history,
                 'savings' => $savings, 'planned_balance' => $opening + $plannedIncome - $plannedExpense,
-                'forecast' => $opening + $income - $expense + $scheduled('income') - $scheduled('expense') + $limitLeft('income') - $limitLeft('expense')],
+                'remaining_income' => $remainingIncome, 'remaining_expense' => $remainingExpense,
+                'forecast' => (int) $history + $income - $expense + $remainingIncome - $remainingExpense],
             'by_author' => User::select('id', 'name')->get()->map(fn ($u) => [...$u->toArray(), 'income' => (int) $entries->where('state', 'actual')->where('kind', 'income')->where('author_id', $u->id)->sum('amount_cents'), 'expense' => (int) $entries->where('state', 'actual')->where('kind', 'expense')->where('author_id', $u->id)->sum('amount_cents')]),
         ];
     }
@@ -55,6 +61,9 @@ class BudgetService
             MonthPlan::whereKey($plan->id)->lockForUpdate()->first();
             $d = CarbonImmutable::createFromFormat('!Y-m', $month);
             foreach (Recurring::where('active', true)->get() as $rule) {
+                if (Entry::where('state', 'planned')->where('recurring_id', $rule->id)->whereBetween('date', [$d->toDateString(), $d->endOfMonth()->toDateString()])->exists()) {
+                    continue;
+                }
                 $amount = $rule->summer_cents !== null && in_array($d->month, [5, 6, 7, 8, 9]) ? $rule->summer_cents : $rule->amount_cents;
                 Entry::firstOrCreate(['source_key' => "recurring:{$rule->id}:{$month}"], [
                     'title' => $rule->title, 'category_id' => $rule->category_id, 'author_id' => $rule->author_id, 'created_by' => $userId,
