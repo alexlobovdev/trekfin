@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd /opt/trekfin
+bash scripts/ensure-tls.sh
 git fetch --quiet origin main
 target_revision="$(git rev-parse origin/main)"
 [[ "$target_revision" != "$(cat .deployed-sha 2>/dev/null || true)" ]] || exit 0

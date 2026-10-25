@@ -18,6 +18,8 @@ GitHub Actions builds both production images and validates PHP and Compose. The 
 
 `journalctl -u trekfin-deploy.service` shows deployment status. The previous images are retained for rollback if an update fails. Additive migrations are required for application rollback to remain safe.
 
+The same timer checks initial HTTPS activation. It waits until Cloudflare DNS resolves the domain to 201.51.11.35, then refreshes only the Trekfin router, at most once every 15 minutes, until a trusted certificate works. Traefik handles subsequent renewal. The checks do not bypass certificate validation.
+
 Before deployments and daily at 03:15 Yekaterinburg, PostgreSQL is dumped to `/var/backups/trekfin`. Retention: 14 days. Backups stay on this host. Restore with `gunzip -c backup.sql.gz | docker compose exec -T db psql -U trekfin -d trekfin` while application writes are stopped. Keep a separate off-host copy for disaster recovery.
 
 ## Notifications and data

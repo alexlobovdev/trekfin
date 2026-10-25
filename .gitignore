@@ -11,6 +11,7 @@ private/
 .DS_Store
 .idea/
 .deployed-sha
+.tls-*
 playwright-report/
 test-results/
 
