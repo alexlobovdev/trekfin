@@ -96,8 +96,8 @@ export default function DebtForm({
           </label>
         </div>
         <p className="form-hint">
-          В начальный прогресс внесите только то, чего ещё нет в истории
-          операций. Для кредита укажите общую сумму, которую планируете вернуть,
+          В начальный прогресс внесите только то, чего ещё нет в истории.
+          Для кредита укажите общую сумму, которую планируете вернуть,
           включая известную переплату.
         </p>
         <div className="form-grid">
@@ -133,7 +133,7 @@ export default function DebtForm({
             />
           </label>
           <label>
-            Кто погашает
+            Кто
             <select name="author_id" defaultValue={debt?.author_id || userId}>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>

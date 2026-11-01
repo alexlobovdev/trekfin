@@ -35,8 +35,8 @@ export default function Transactions({
         <label className="search-field">
           <Search size={18} />
           <input
-            placeholder="Найти операцию…"
-            aria-label="Поиск операций"
+            placeholder="Найти запись…"
+            aria-label="Поиск"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -44,11 +44,11 @@ export default function Transactions({
         <div className="filter-select">
           <SlidersHorizontal size={16} />
           <select
-            aria-label="Автор"
+            aria-label="Кто"
             value={author}
             onChange={(e) => setAuthor(e.target.value)}
           >
-            <option value="">Оба автора</option>
+            <option value="">Вместе</option>
             {data.users.map((u) => (
               <option key={u.id} value={u.id}>
                 {u.name}
@@ -57,7 +57,7 @@ export default function Transactions({
           </select>
         </div>
         <select
-          aria-label="Тип операции"
+          aria-label="Доход или расход"
           value={kind}
           onChange={(e) => setKind(e.target.value)}
         >
@@ -80,8 +80,8 @@ export default function Transactions({
         <a
           className="icon-button export-button"
           href="/api/export"
-          aria-label="Скачать все операции CSV"
-          title="Скачать все операции CSV"
+          aria-label="Скачать CSV"
+          title="Скачать CSV"
         >
           <Download size={19} />
         </a>
@@ -89,13 +89,9 @@ export default function Transactions({
       <section className="panel">
         <div className="panel-title">
           <div>
-            <h2>История операций</h2>
-            <p>{entries.length} записей · только фактические операции</p>
+            <h2>Уже прошло</h2>
+            <p>{entries.length} записей</p>
           </div>
-          <button className="button secondary" onClick={onAdd}>
-            <Plus size={16} />
-            Добавить
-          </button>
         </div>
         {entries.length ? (
           entries.map((e) => <EntryRow key={e.id} entry={e} onEdit={onEdit} />)
@@ -109,13 +105,13 @@ export default function Transactions({
             body={
               search || author || kind || category
                 ? "Попробуйте изменить фильтры."
-                : "Добавьте первый расход или доход. Не забудьте указать автора."
+                : "Запишите первый расход или доход."
             }
             action={
               !search && !author && !kind && !category ? (
                 <button className="button primary" onClick={onAdd}>
                   <Plus size={16} />
-                  Первая операция
+                  Записать
                 </button>
               ) : undefined
             }

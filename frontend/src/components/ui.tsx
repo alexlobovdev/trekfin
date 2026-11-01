@@ -229,7 +229,7 @@ export function EntryRow({
               {entry.author.name}
             </>
           ) : (
-            "Общие"
+            "Общее"
           )}
         </span>
       </div>

@@ -6,84 +6,86 @@ import { CategoryIcon, Modal } from "../components/ui";
 export default function Recurring({
   data,
   onRefresh,
+  onGenerate,
+  busy,
 }: {
   data: Bootstrap;
   onRefresh: () => void;
+  onGenerate: () => void;
+  busy: boolean;
 }) {
   const [editing, setEditing] = useState<Partial<Rule> | null>(null),
     [error, setError] = useState("");
   const rules = data.recurrings.filter((r) => r.active);
   return (
     <>
-      <div className="section-intro">
-        <div>
-          <h2>Меньше рутины каждый месяц</h2>
-          <p>
-            Создавайте план из повторяющихся расходов и доходов в один клик.
-          </p>
-        </div>
-        <button className="button primary" onClick={() => setEditing({})}>
-          <Plus size={17} />
-          Новый платёж
-        </button>
-      </div>
-      <div className="recurring-summary">
-        <Repeat2 size={24} />
-        <div>
-          <span>Регулярные расходы в месяц</span>
-          <strong>
-            {money(
-              rules
-                .filter((r) => r.kind === "expense")
-                .reduce((s, r) => s + r.amount_cents, 0),
-            )}
-          </strong>
-        </div>
-        <p>
-          Зимний тариф коммуналки
-          <br />
-          Летний применяется с мая по сентябрь
-        </p>
-      </div>
-      {error && <p className="error">{error}</p>}
-      <div className="recurring-grid">
-        {rules.map((r) => {
-          const c = data.categories.find((c) => c.id === r.category_id);
-          return (
-            <button
-              key={r.id}
-              className="recurring-card panel"
-              onClick={() => setEditing(r)}
-            >
-              <div>
-                <CategoryIcon category={c} />
-                <span className="quiet-pill">
-                  {data.users.find((u) => u.id === r.author_id)?.name ||
-                    "Общие"}
-                </span>
-              </div>
-              <h3>{r.title}</h3>
-              <strong>
-                {money(r.amount_cents)}
-                <small>/ мес.</small>
-              </strong>
-              <p>
-                {c?.name} · {r.day} числа
-              </p>
-              {r.summer_cents !== null && (
-                <span className="season-label">
-                  Летом {money(r.summer_cents)}
-                </span>
-              )}
+      <section className="panel">
+        <div className="panel-title budget-title">
+          <div>
+            <h2>Каждый месяц</h2>
+            <p>
+              {money(
+                rules
+                  .filter((r) => r.kind === "expense")
+                  .reduce((s, r) => s + r.amount_cents, 0),
+              )}{" "}
+              расходов
+            </p>
+          </div>
+          <div className="budget-actions">
+            <button className="button secondary" disabled={busy} onClick={onGenerate}>
+              <Repeat2 size={16} />
+              {busy ? "Подставляем…" : "Подставить в этот месяц"}
             </button>
-          );
-        })}
-      </div>
-      <p className="source-note">
-        День платежа применяется к связанным планам текущего и будущих месяцев.
-        Оплаченные и перенесённые вручную записи сохраняют свои даты.
-        Изменения сумм применяются при добавлении регулярных платежей в новый месяц.
-      </p>
+            <button className="button secondary" onClick={() => setEditing({})}>
+              <Plus size={16} />
+              Новый
+            </button>
+          </div>
+        </div>
+        {error && <p className="error">{error}</p>}
+        {rules.length ? (
+          <div className="recurring-grid">
+            {rules.map((r) => {
+              const c = data.categories.find((c) => c.id === r.category_id);
+              return (
+                <button
+                  key={r.id}
+                  className="recurring-card panel"
+                  onClick={() => setEditing(r)}
+                >
+                  <div>
+                    <CategoryIcon category={c} />
+                    <span className="quiet-pill">
+                      {data.users.find((u) => u.id === r.author_id)?.name ||
+                        "Общее"}
+                    </span>
+                  </div>
+                  <h3>{r.title}</h3>
+                  <strong>
+                    {money(r.amount_cents)}
+                    <small>/ мес.</small>
+                  </strong>
+                  <p>
+                    {c?.name} · {r.day} числа
+                  </p>
+                  {r.summer_cents !== null && (
+                    <span className="season-label">
+                      Летом {money(r.summer_cents)}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="section-hint">Пока нет шаблонов.</p>
+        )}
+        <p className="source-note">
+          День шаблона не трогает уже оплаченные и вручную перенесённые даты
+          этого месяца.
+        </p>
+      </section>
       {editing && (
         <RuleForm
           rule={editing}
@@ -113,13 +115,13 @@ function RuleForm({
   onError: (s: string) => void;
 }) {
   const [kind, setKind] = useState<Kind>(rule.kind || "expense"),
-    [busy, setBusy] = useState(false),
+    [saving, setSaving] = useState(false),
     [error, setError] = useState(""),
     [deleting, setDeleting] = useState(false);
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.currentTarget));
-    setBusy(true);
+    setSaving(true);
     try {
       await api(
         "recurrings" + (rule.id ? "/" + rule.id : ""),
@@ -138,14 +140,11 @@ function RuleForm({
       onSaved();
     } catch (e) {
       setError((e as Error).message);
-      setBusy(false);
+      setSaving(false);
     }
   };
   return (
-    <Modal
-      title={rule.id ? "Регулярный платёж" : "Новый регулярный платёж"}
-      onClose={onClose}
-    >
+    <Modal title={rule.id ? "Каждый месяц" : "Новый"} onClose={onClose}>
       <form className="form" onSubmit={submit}>
         <label>
           Название
@@ -199,7 +198,7 @@ function RuleForm({
             />
           </label>
           <label>
-            День платежа каждый месяц
+            День
             <input
               name="day"
               type="number"
@@ -211,14 +210,14 @@ function RuleForm({
           </label>
         </div>
         <p className="form-hint">
-          Если такого дня в месяце нет, платёж попадёт на последний день.
-          Разовую дату и дату фактической оплаты можно изменить в бюджете,
-          операциях или календаре — регулярный день при этом сохранится.
+          Если такого дня нет, платёж встанет на последний день. Разовую дату
+          меняют в плане, истории или календаре. Новая сумма попадает в месяц
+          при следующей подстановке.
         </p>
         <label>
-          Для кого
+          Кто
           <select name="author_id" defaultValue={rule.author_id || ""}>
-            <option value="">Общие</option>
+            <option value="">Общее</option>
             {data.users.map((u) => (
               <option value={u.id} key={u.id}>
                 {u.name}
@@ -255,13 +254,13 @@ function RuleForm({
             <button
               type="button"
               className="danger-link"
-              disabled={busy}
+              disabled={saving}
               onClick={async () => {
                 if (!deleting) {
                   setDeleting(true);
                   return;
                 }
-                setBusy(true);
+                setSaving(true);
                 try {
                   await api("recurrings/" + rule.id, "DELETE");
                   onSaved();
@@ -275,8 +274,8 @@ function RuleForm({
               {deleting ? "Убрать платёж?" : "Убрать"}
             </button>
           )}
-          <button className="button primary" disabled={busy}>
-            {busy ? "Сохраняем…" : "Сохранить"}
+          <button className="button primary" disabled={saving}>
+            {saving ? "Сохраняем…" : "Сохранить"}
           </button>
         </div>
       </form>

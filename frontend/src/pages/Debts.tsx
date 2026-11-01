@@ -24,19 +24,20 @@ export default function Debts({
   onRefresh,
   onEdit,
   onPay,
+  showArchive,
 }: {
   data: Bootstrap;
   userId: number;
   onRefresh: () => void;
   onEdit: (e: Entry) => void;
   onPay: (d: Debt) => void;
+  showArchive: boolean;
 }) {
   const [editing, setEditing] = useState<Debt | "new" | null>(null),
     [payment, setPayment] = useState<{
       debt: Debt;
       record?: MoneyRecord;
     } | null>(null),
-    [showArchive, setShowArchive] = useState(false),
     [filter, setFilter] = useState("all");
   const active = data.debts.filter((d) => !d.archived),
     debts = data.debts.filter(
@@ -92,18 +93,10 @@ export default function Debts({
           <strong className="positive">{money(paid)}</strong>
         </div>
         <div>
-          <span>Ориентир в месяц</span>
+          <span>Платёж в месяц</span>
           <strong>{money(monthly)}</strong>
         </div>
       </div>
-      <label className="check-label resource-archive">
-        <input
-          type="checkbox"
-          checked={showArchive}
-          onChange={(e) => setShowArchive(e.target.checked)}
-        />
-        Показывать архив
-      </label>
       <div className="resource-grid">
         {debts.map((d) => {
           const remaining = Math.max(0, d.amount_cents - d.paid_cents),
@@ -131,7 +124,7 @@ export default function Debts({
                   </span>
                   <div>
                     <span className="eyebrow">
-                      {d.archived ? "В АРХИВЕ" : debtTypes[d.type]}
+                      {d.archived ? "В архиве" : debtTypes[d.type]}
                     </span>
                     <h2>{d.title}</h2>
                     <p>
@@ -258,9 +251,8 @@ export default function Debts({
       )}
       <p className="source-note">
         <ArrowUpRight size={13} />
-        Внешние платежи — расходы семьи. Возвраты внутри пары учитываются
-        отдельно. Месячный платёж — ориентир; операции в бюджете появляются
-        после добавления.
+        Внешний платёж — расход семьи. Возврат внутри пары в расходы не
+        входит. Сумма в месяц — ориентир и сама в план не встаёт.
       </p>
       {editing && (
         <DebtForm

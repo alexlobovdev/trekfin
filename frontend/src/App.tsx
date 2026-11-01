@@ -1,23 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ArrowUpRight,
   Bell,
   CalendarDays,
-  ChevronRight,
+  Ellipsis,
   Heart,
   House,
-  LayoutGrid,
   LogOut,
   Plus,
-  Repeat2,
   Settings as SettingsIcon,
   Wallet,
-  Handshake,
   Send,
   PiggyBank,
   Target,
 } from "lucide-react";
-import { api, ApiError, invalidateCsrf, money, today } from "./api";
+import { api, ApiError, invalidateCsrf, money, monthLabel, today } from "./api";
 import type { Bootstrap, Debt, Entry, Insight, Month, User } from "./types";
 import { Avatar, MonthPicker } from "./components/ui";
 import EntryForm, { type EntryDraft } from "./components/EntryForm";
@@ -27,29 +23,22 @@ import Auth from "./pages/Auth";
 import Overview from "./pages/Overview";
 import Budget from "./pages/Budget";
 import Transactions from "./pages/Transactions";
-import Recurring from "./pages/Recurring";
-import Debts from "./pages/Debts";
-import Savings from "./pages/Savings";
+import Goals from "./pages/Goals";
 import Settings from "./pages/Settings";
 const pages = [
   { id: "overview", label: "Обзор", icon: House },
-  { id: "budget", label: "Бюджет", icon: PiggyBank },
-  { id: "calendar", label: "Календарь трат", icon: CalendarDays },
-  { id: "transactions", label: "Операции", icon: Wallet },
-  { id: "recurring", label: "Регулярные платежи", icon: Repeat2 },
-  { id: "debts", label: "Долги и кредиты", icon: Handshake },
-  { id: "savings", label: "Накопления", icon: Target },
-  { id: "settings", label: "Настройки", icon: SettingsIcon },
+  { id: "budget", label: "План", icon: PiggyBank },
+  { id: "calendar", label: "Календарь", icon: CalendarDays },
+  { id: "transactions", label: "История", icon: Wallet },
+  { id: "goals", label: "Цели", icon: Target },
 ];
-const descriptions: Record<string, string> = {
-  overview: "Всё важное о ваших деньгах — в одном месте",
-  budget: "Спокойно планируем, осознанно тратим",
-  calendar: "Траты по дням, важные платежи и вклад каждого",
-  transactions: "Доходы, расходы и вклад каждого",
-  recurring: "Один раз настроили — каждый месяц под рукой",
-  debts: "Понятные суммы и прозрачная история",
-  savings: "Приближаем мечты, отмечаем каждый шаг",
-  settings: "Пусть Trekfin будет удобен именно вам",
+const labels: Record<string, string> = {
+  overview: "Обзор",
+  budget: "План",
+  calendar: "Календарь",
+  transactions: "История",
+  goals: "Цели",
+  settings: "Настройки",
 };
 export default function App() {
   const [user, setUser] = useState<User | null>(null),
@@ -64,7 +53,10 @@ export default function App() {
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false),
     [calendarDay, setCalendarDay] = useState(today()),
-    [pushOpen, setPushOpen] = useState(false);
+    [pushOpen, setPushOpen] = useState(false),
+    [moreOpen, setMoreOpen] = useState(false),
+    [settingsTab, setSettingsTab] = useState("categories"),
+    [goalsTab, setGoalsTab] = useState<"savings" | "debts">("savings");
   const calendarDate = calendarDay.startsWith(month)
     ? calendarDay
     : month === today().slice(0, 7)
@@ -126,8 +118,17 @@ export default function App() {
     return () => window.removeEventListener("focus", onFocus);
   }, [refresh]);
   const navigate = (p: string) => {
+    if (p === "debts") {
+      setGoalsTab("debts");
+      p = "goals";
+    } else if (p === "goals") setGoalsTab("savings");
     setPage(p);
+    setMoreOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const openSettings = (tab: string) => {
+    setSettingsTab(tab);
+    navigate("settings");
   };
   const add = (planned = false) =>
     setDraft({
@@ -199,7 +200,9 @@ export default function App() {
     );
   if (!user || user.must_change_password)
     return <Auth user={user || undefined} onUser={setUser} />;
-  const active = pages.find((p) => p.id === page)!;
+  const monthTitle = monthLabel(month).replace(/^./, (letter) =>
+    letter.toUpperCase(),
+  );
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -225,7 +228,6 @@ export default function App() {
             <small>Личное пространство</small>
           </div>
         </div>
-        <span className="nav-label">ВАШЕ ПРОСТРАНСТВО</span>
         <nav>
           {pages.map((p) => (
             <button
@@ -239,22 +241,14 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <div className="sidebar-note">
-          <span className="note-heart">
-            <Heart size={20} strokeWidth={1.5} />
-          </span>
-          <strong>Вместе проще</strong>
-          <p>
-            Два человека.
-            <br />
-            Один взгляд на финансы.
-          </p>
-          <div className="mini-avatars">
-            {(data?.users || []).map((u) => (
-              <Avatar name={u.name} key={u.id} small />
-            ))}
-          </div>
-        </div>
+        <button
+          className={"sidebar-settings" + (page === "settings" ? " active" : "")}
+          onClick={() => openSettings("categories")}
+        >
+          <SettingsIcon size={19} strokeWidth={1.7} />
+          Настройки
+          {page === "settings" && <span className="active-dot" />}
+        </button>
         <button
           className="sidebar-profile"
           onClick={logout}
@@ -270,19 +264,7 @@ export default function App() {
       </aside>
       <main className="main">
         <header className="topbar">
-          <div className="breadcrumb">
-            <span>Наши финансы</span>
-            <ChevronRight size={13} />
-            <strong>{active.label}</strong>
-          </div>
           <div className="topbar-actions">
-            <span className="for-two">ДЛЯ ДВОИХ</span>
-            <div className="mini-avatars">
-              {(data?.users || []).map((u) => (
-                <Avatar name={u.name} key={u.id} small />
-              ))}
-            </div>
-            <span className="top-divider" />
             <button
               className="send-push-button"
               aria-label="Отправить пуш"
@@ -294,8 +276,8 @@ export default function App() {
             </button>
             <button
               className="icon-button notification-button"
-              aria-label="Настройки уведомлений"
-              onClick={() => navigate("settings")}
+              aria-label="Уведомления"
+              onClick={() => openSettings("notifications")}
             >
               <Bell size={20} />
               <span />
@@ -315,33 +297,21 @@ export default function App() {
           }
         >
           <div className="page-heading">
-            <div>
-              <div className="eyebrow">
-                {page === "overview"
-                  ? "ВАШ ОБЩИЙ БЮДЖЕТ"
-                  : "TREKFIN · ДЛЯ ДВОИХ"}
-              </div>
-              <h1>
-                {page === "overview" ? "Финансы без суеты" : active.label}
-                <span className="heading-dot">.</span>
-              </h1>
-              <p>{descriptions[page]}</p>
-            </div>
+            <h1>
+              {page === "overview" ? monthTitle : labels[page]}
+              <span className="heading-dot">.</span>
+            </h1>
             <div className="heading-actions">
               {["overview", "budget", "transactions", "calendar"].includes(
                 page,
               ) && <MonthPicker month={month} onChange={setMonth} />}
-              {!["debts", "savings"].includes(page) && (
+              {!["goals", "settings"].includes(page) && (
                 <button
                   className="button primary add-main"
                   onClick={() => add(page === "budget")}
                 >
                   <Plus size={18} />
-                  <span>
-                    {page === "budget"
-                      ? "Добавить в план"
-                      : "Добавить операцию"}
-                  </span>
+                  <span>Записать</span>
                 </button>
               )}
             </div>
@@ -383,7 +353,6 @@ export default function App() {
                   data={data}
                   onEdit={setDraft}
                   onPay={pay}
-                  onAdd={() => add(true)}
                   onRefresh={refresh}
                   onMonth={setMonth}
                 />
@@ -415,32 +384,25 @@ export default function App() {
                   }
                 />
               )}
-              {page === "recurring" && (
-                <Recurring data={data} onRefresh={refresh} />
-              )}{" "}
-              {page === "debts" && (
-                <Debts
-                  data={data}
-                  userId={user.id}
-                  onRefresh={refresh}
-                  onEdit={setDraft}
-                  onPay={payDebt}
-                />
-              )}{" "}
-              {page === "savings" && (
-                <Savings
+              {page === "goals" && (
+                <Goals
                   data={data}
                   month={snapshot}
                   userId={user.id}
+                  section={goalsTab}
+                  onSection={setGoalsTab}
                   onRefresh={refresh}
+                  onEdit={setDraft}
+                  onPay={payDebt}
                 />
               )}{" "}
               {page === "settings" && (
                 <Settings
                   data={data}
                   user={user}
+                  tab={settingsTab}
+                  onTab={setSettingsTab}
                   onRefresh={refresh}
-                  onNavigate={navigate}
                 />
               )}
             </div>
@@ -454,12 +416,44 @@ export default function App() {
           )}
         </div>
       </main>
+      {moreOpen && (
+        <button
+          className="more-backdrop"
+          aria-label="Закрыть меню"
+          onClick={() => setMoreOpen(false)}
+        />
+      )}
+      {moreOpen && (
+        <div className="more-sheet" role="menu">
+          <button
+            className={page === "transactions" ? "active" : ""}
+            onClick={() => navigate("transactions")}
+          >
+            <Wallet size={18} />
+            История
+          </button>
+          <button
+            className={page === "goals" ? "active" : ""}
+            onClick={() => navigate("goals")}
+          >
+            <Target size={18} />
+            Цели
+          </button>
+          <button
+            className={page === "settings" ? "active" : ""}
+            onClick={() => openSettings("categories")}
+          >
+            <SettingsIcon size={18} />
+            Настройки
+          </button>
+        </div>
+      )}
       <nav className="bottom-nav">
         <button
           className={page === "overview" ? "active" : ""}
           onClick={() => navigate("overview")}
         >
-          <LayoutGrid size={21} />
+          <House size={21} />
           <span>Обзор</span>
         </button>
         <button
@@ -467,7 +461,14 @@ export default function App() {
           onClick={() => navigate("budget")}
         >
           <PiggyBank size={21} />
-          <span>Бюджет</span>
+          <span>План</span>
+        </button>
+        <button
+          className="mobile-add"
+          onClick={() => add(page === "budget")}
+          aria-label="Записать"
+        >
+          <Plus size={25} />
         </button>
         <button
           className={page === "calendar" ? "active" : ""}
@@ -477,28 +478,16 @@ export default function App() {
           <span>Календарь</span>
         </button>
         <button
-          className="mobile-add"
-          onClick={() => add(page === "budget")}
-          aria-label="Добавить операцию"
-        >
-          <Plus size={25} />
-        </button>
-        <button
-          className={page === "transactions" ? "active" : ""}
-          onClick={() => navigate("transactions")}
-        >
-          <Wallet size={21} />
-          <span>Операции</span>
-        </button>
-        <button
           className={
-            ["settings", "recurring", "debts", "savings"].includes(page)
+            moreOpen ||
+            ["transactions", "goals", "settings"].includes(page)
               ? "active"
               : ""
           }
-          onClick={() => navigate("settings")}
+          onClick={() => setMoreOpen((open) => !open)}
+          aria-expanded={moreOpen}
         >
-          <SettingsIcon size={21} />
+          <Ellipsis size={21} />
           <span>Ещё</span>
         </button>
       </nav>
@@ -509,9 +498,7 @@ export default function App() {
           userId={user.id}
           month={month}
           plans={
-            snapshot?.entries.filter(
-              (e) => e.state === "planned" && e.kind === "expense",
-            ) || []
+            snapshot?.entries.filter((e) => e.state === "planned") || []
           }
           progress={snapshot?.categories || []}
           onClose={() => setDraft(null)}

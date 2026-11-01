@@ -79,8 +79,8 @@ export default function PushMessage({ onClose }: { onClose: () => void }) {
         </div>
         {recipient && !recipient.subscribed && (
           <p className="form-hint">
-            Второму участнику нужно открыть Trekfin → «Ещё» → «Уведомления» и
-            разрешить их на своём устройстве.
+            Второму участнику нужно открыть Trekfin → Настройки → Уведомления
+            и разрешить их на своём устройстве.
           </p>
         )}
         {result && (

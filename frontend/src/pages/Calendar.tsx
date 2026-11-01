@@ -166,7 +166,7 @@ export default function Calendar({
           <strong>{money(total)}</strong>
         </div>
         <div>
-          <span>Запланировано с датой</span>
+          <span>В плане с датой</span>
           <strong>{money(remaining)}</strong>
         </div>
         <div>
@@ -183,8 +183,8 @@ export default function Calendar({
             <h2>{monthLabel(month.month)}</h2>
             <span className="calendar-legend">
               <i />
-              Факт <i className="planned-dot" />
-              План <span>· ₽</span>
+              Прошло <i className="planned-dot" />
+              В плане <span>· ₽</span>
             </span>
           </div>
           <div className="calendar-weekdays">
@@ -291,25 +291,26 @@ export default function Calendar({
             ↑ К календарю
           </button>
           <div className="panel-title">
-            <div>
-              <span className="eyebrow">ВЫБРАННЫЙ ДЕНЬ</span>
-              <h2>{selectedLabel[0].toUpperCase() + selectedLabel.slice(1)}</h2>
-            </div>
+            <h2>{selectedLabel[0].toUpperCase() + selectedLabel.slice(1)}</h2>
             <button
               className="icon-button"
               onClick={() =>
                 onAdd(selected, author ? Number(author) : undefined)
               }
-              aria-label="Добавить расход на выбранный день"
+              aria-label={
+                selected > today()
+                  ? "В план на выбранный день"
+                  : "Записать на выбранный день"
+              }
             >
               <Plus size={20} />
             </button>
           </div>
           <div className="calendar-day-total">
-            <span>Фактические расходы</span>
+            <span>Уже прошло</span>
             <strong>{money(daySums?.actual || 0)}</strong>
             {includePlans && !!daySums?.planned && (
-              <small>Ещё по плану: {money(daySums.planned)}</small>
+              <small>Ещё в плане: {money(daySums.planned)}</small>
             )}
           </div>
           {dayEntries.length ? (
@@ -317,7 +318,7 @@ export default function Calendar({
               {dayEntries.map((e) => (
                 <div key={e.id}>
                   {e.state === "planned" && (
-                    <span className="calendar-entry-label">Запланировано</span>
+                    <span className="calendar-entry-label">В плане</span>
                   )}
                   <EntryRow
                     entry={e}
@@ -330,7 +331,7 @@ export default function Calendar({
           ) : (
             <Empty
               title="На этот день пока нет трат"
-              body="Добавьте расход или запланируйте платёж на выбранную дату."
+              body="Запишите расход или поставьте платёж на этот день."
             />
           )}
           <button
@@ -338,7 +339,7 @@ export default function Calendar({
             onClick={() => onAdd(selected, author ? Number(author) : undefined)}
           >
             <Plus size={16} />
-            {selected > today() ? "Запланировать платёж" : "Добавить расход"}
+            {selected > today() ? "В план" : "Записать"}
           </button>
         </section>
       </div>
@@ -350,10 +351,6 @@ export default function Calendar({
                 Планы без точной даты{" "}
                 <span className="quiet-pill">{undated.length}</span>
               </h2>
-              <p>
-                Выберите день и назначьте разовую дату платежу. Повторяющийся
-                день месяца задайте в разделе «Регулярные платежи».
-              </p>
             </div>
             <CalendarDays size={21} />
           </div>
@@ -366,7 +363,7 @@ export default function Calendar({
                   onEdit({ ...e, date: selected, date_confirmed: true })
                 }
               >
-                Назначить <ArrowRight size={14} />
+                На этот день <ArrowRight size={14} />
               </button>
             </div>
           ))}

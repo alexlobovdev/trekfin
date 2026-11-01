@@ -26,7 +26,9 @@ export default function EntryForm({
   const paying = !!draft.paying,
     editing = !!draft.id && !paying;
   const [kind, setKind] = useState<Kind>(draft.kind || "expense");
-  const state = draft.state || "actual";
+  const [state, setState] = useState<"actual" | "planned">(
+    !paying && draft.state === "planned" ? "planned" : "actual",
+  );
   const [category, setCategory] = useState(
     String(
       draft.category_id ||
@@ -66,7 +68,19 @@ export default function EntryForm({
   );
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
-    [confirmDelete, setConfirmDelete] = useState(false);
+    [confirmDelete, setConfirmDelete] = useState(false),
+    [extraOpen, setExtraOpen] = useState(
+      !!(
+        draft.debt_id ||
+        draft.savings_goal_id ||
+        draft.note ||
+        draft.plan_id ||
+        (draft.state === "planned" && draft.date_confirmed === false) ||
+        ["Отложенное", "Возврат из накоплений"].includes(
+          data.categories.find((c) => c.id === draft.category_id)?.name || "",
+        )
+      ),
+    );
   const selectedCategory = data.categories.find(
       (c) => c.id === Number(category),
     ),
@@ -136,20 +150,61 @@ export default function EntryForm({
       setBusy(false);
     }
   };
+  const savingsCategory = ["Отложенное", "Возврат из накоплений"].includes(
+      selectedCategory?.name || "",
+    ),
+    planChoices = plans.filter(
+      (p) =>
+        p.category?.mode !== "limit" &&
+        p.kind === kind &&
+        (!p.debt_id || String(p.debt_id) === debt) &&
+        (!p.savings_goal_id || String(p.savings_goal_id) === savings) &&
+        p.paid_cents < p.amount_cents,
+    );
+  const pickPlan = (id: string) => {
+    setLinkedPlan(id);
+    const p = plans.find((item) => String(item.id) === id);
+    if (!p) return;
+    setCategory(String(p.category_id));
+    setTitle(p.title);
+    setAmount(amountInput(Math.max(0, p.amount_cents - p.paid_cents)));
+    setAuthor(String(p.author_id || userId));
+    setDebt(String(p.debt_id || ""));
+    setSavings(String(p.savings_goal_id || ""));
+    if (
+      ["Отложенное", "Возврат из накоплений"].includes(p.category?.name || "")
+    )
+      setExtraOpen(true);
+  };
   return (
     <Modal
       title={
-        paying
-          ? "Подтвердить платёж"
-          : editing
-            ? "Изменить запись"
-            : state === "planned"
-              ? "Добавить в план"
-              : "Новая операция"
+        paying ? "Подтвердить платёж" : editing ? "Изменить запись" : "Записать"
       }
       onClose={onClose}
     >
       <form onSubmit={submit} className="form">
+        <div className="segmented">
+          <button
+            type="button"
+            className={state === "actual" ? "selected" : ""}
+            disabled={paying || editing || linkedSaving}
+            onClick={() => {
+              setState("actual");
+              if (!author) setAuthor(String(userId));
+            }}
+          >
+            Уже произошло
+          </button>
+          <button
+            type="button"
+            className={state === "planned" ? "selected" : ""}
+            disabled={paying || editing || linkedSaving}
+            onClick={() => setState("planned")}
+          >
+            В плане
+          </button>
+        </div>
         <div className="segmented">
           <button
             type="button"
@@ -170,83 +225,6 @@ export default function EntryForm({
             Доход
           </button>
         </div>
-        {kind === "expense" &&
-          !savings &&
-          data.debts.some((d) => d.type !== "internal") && (
-            <details className="form-extra" open={!!debt}>
-            <summary>Погашение долга или кредита</summary>
-            <label>
-              В счёт долга или кредита
-              <select
-                value={debt}
-                disabled={paying && !!draft.debt_id}
-                onChange={(e) => {
-                  setDebt(e.target.value);
-                  setLinkedPlan("");
-                }}
-              >
-                <option value="">Обычный расход</option>
-                {data.debts
-                  .filter(
-                    (d) =>
-                      d.type !== "internal" &&
-                      (!d.archived || String(d.id) === debt),
-                  )
-                  .map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.title} · осталось{" "}
-                      {(d.amount_cents - d.paid_cents) / 100} ₽
-                    </option>
-                  ))}
-              </select>
-            </label>
-            </details>
-          )}
-        {(debt || savings) && !limitCategory &&
-          plans.some((p) => p.kind === kind && p.category?.mode !== "limit" && p.paid_cents < p.amount_cents) &&
-          state === "actual" &&
-          !paying &&
-          !editing && (
-          <label>
-            Что оплатили из плана?
-            <select
-              value={linkedPlan}
-              onChange={(e) => {
-                setLinkedPlan(e.target.value);
-                const p = plans.find((p) => String(p.id) === e.target.value);
-                if (p) {
-                  setCategory(String(p.category_id));
-                  setTitle(p.title);
-                  setAmount(amountInput(Math.max(0, p.amount_cents - p.paid_cents)));
-                  setAuthor(String(p.author_id || userId));
-                  setDebt(String(p.debt_id || ""));
-                  setSavings(String(p.savings_goal_id || ""));
-                }
-              }}
-            >
-              <option value="">Обычная покупка или другой платёж</option>
-              {plans
-                .filter(
-                  (p) =>
-                    p.category?.mode !== "limit" &&
-                    p.kind === kind &&
-                    (!p.debt_id || String(p.debt_id) === debt) &&
-                    (!p.savings_goal_id ||
-                      String(p.savings_goal_id) === savings) &&
-                    p.paid_cents < p.amount_cents,
-                )
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.title} · остаток {(p.amount_cents - p.paid_cents) / 100}{" "}
-                    ₽
-                  </option>
-                ))}
-            </select>
-            <span className="form-hint">
-              Можно выбрать готовый платёж или записать обычную покупку.
-            </span>
-          </label>
-        )}
         <label className="amount-field">
           Сумма, ₽
           <input
@@ -260,63 +238,33 @@ export default function EntryForm({
           />
         </label>
         <label>
-          Описание
-          <input
+          Категория
+          <select
             required
-            maxLength={120}
-            placeholder={
-              kind === "expense"
-                ? "Например, продукты на неделю"
-                : "Например, зарплата"
-            }
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
+            disabled={paying || linkedSaving}
+            value={category}
+            onChange={(e) => {
+              const next = e.target.value;
+              setCategory(next);
+              if (!linkedSaving) setSavings("");
+              setLinkedPlan("");
+              const name = data.categories.find((c) => c.id === Number(next))?.name;
+              if (["Отложенное", "Возврат из накоплений"].includes(name || ""))
+                setExtraOpen(true);
+            }}
+          >
+            {data.categories
+              .filter(
+                (c) =>
+                  (c.active || c.id === draft.category_id) && c.kind === kind,
+              )
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+          </select>
         </label>
-        <div className="form-grid">
-          <label>
-            Категория
-            <select
-              required
-              disabled={paying || linkedSaving}
-              value={category}
-              onChange={(e) => {
-                setCategory(e.target.value);
-                if (!linkedSaving) setSavings("");
-                setLinkedPlan("");
-              }}
-            >
-              {data.categories
-                .filter(
-                  (c) =>
-                    (c.active || c.id === draft.category_id) && c.kind === kind,
-                )
-                .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-            </select>
-          </label>
-          {!(state === "planned" && limitCategory) && <label>
-            {paying || state === "actual" ? "Дата фактической операции" : "Дата платежа в этом месяце"}
-            <input
-              required
-              type="date"
-              disabled={state === "planned" && !paying && !dateConfirmed}
-              value={
-                state === "planned" && !paying && !dateConfirmed ? "" : date
-              }
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </label>}
-        </div>
-        {draft.recurring_id && state === "planned" && !paying && (
-          <p className="form-hint">
-            Изменение даты перенесёт только этот платёж. День для остальных
-            месяцев задаётся в разделе «Регулярные платежи».
-          </p>
-        )}
         {limitCategory && (state === "actual" || paying) && (
           <p className="form-hint">
             {limitPlanned
@@ -332,12 +280,128 @@ export default function EntryForm({
             Эта сумма задаёт лимит категории, а не отдельный платёж.
           </p>
         )}
-        {["Отложенное", "Возврат из накоплений"].includes(
-          data.categories.find((c) => c.id === Number(category))?.name || "",
-        ) &&
-          data.savings.length > 0 && (
+        <label>
+          Название
+          <input
+            required
+            maxLength={120}
+            placeholder={
+              kind === "expense"
+                ? "Например, продукты на неделю"
+                : "Например, зарплата"
+            }
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </label>
+        {!(state === "planned" && limitCategory) && (
+          <label>
+            Дата
+            <input
+              required
+              type="date"
+              disabled={state === "planned" && !paying && !dateConfirmed}
+              value={
+                state === "planned" && !paying && !dateConfirmed ? "" : date
+              }
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </label>
+        )}
+        {draft.recurring_id && state === "planned" && !paying && (
+          <p className="form-hint">
+            Изменение даты перенесёт только этот платёж. День для остальных
+            месяцев задаётся в «Каждый месяц».
+          </p>
+        )}
+        <fieldset className="person-fieldset">
+          <legend>Кто</legend>
+          <div className="person-options">
+            {state === "planned" && !paying && (
+              <button
+                type="button"
+                className={!author ? "selected" : ""}
+                onClick={() => setAuthor("")}
+              >
+                Общее
+              </button>
+            )}
+            {data.users.map((u) => (
+              <button
+                type="button"
+                key={u.id}
+                className={author === String(u.id) ? "selected" : ""}
+                onClick={() => setAuthor(String(u.id))}
+              >
+                {u.name}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        <details
+          className="form-extra"
+          open={extraOpen}
+          onToggle={(e) => setExtraOpen(e.currentTarget.open)}
+        >
+          <summary>Ещё</summary>
+          <label>
+            Комментарий <span className="muted">· необязательно</span>
+            <textarea
+              rows={2}
+              maxLength={2000}
+              placeholder="Что стоит запомнить"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </label>
+          {state === "actual" && !paying && !editing && planChoices.length > 0 && (
             <label>
-              Цель накоплений
+              Платёж из плана
+              <select
+                value={linkedPlan}
+                onChange={(e) => pickPlan(e.target.value)}
+              >
+                <option value="">Не связывать</option>
+                {planChoices.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.title} · остаток {(p.amount_cents - p.paid_cents) / 100} ₽
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {kind === "expense" &&
+            !savings &&
+            data.debts.some((d) => d.type !== "internal") && (
+              <label>
+                Долг
+                <select
+                  value={debt}
+                  disabled={paying && !!draft.debt_id}
+                  onChange={(e) => {
+                    setDebt(e.target.value);
+                    setLinkedPlan("");
+                  }}
+                >
+                  <option value="">Не связано с долгом</option>
+                  {data.debts
+                    .filter(
+                      (d) =>
+                        d.type !== "internal" &&
+                        (!d.archived || String(d.id) === debt),
+                    )
+                    .map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.title} · осталось{" "}
+                        {(d.amount_cents - d.paid_cents) / 100} ₽
+                      </option>
+                    ))}
+                </select>
+              </label>
+            )}
+          {savingsCategory && data.savings.length > 0 && (
+            <label>
+              Цель
               <select
                 value={savings}
                 disabled={linkedSaving}
@@ -358,69 +422,30 @@ export default function EntryForm({
               </select>
             </label>
           )}
-        {linkedSaving && (
-          <p className="form-hint">
-            Запись связана с целью накоплений. Изменение суммы обновит её
-            прогресс.
-          </p>
-        )}
-        {state === "planned" && !paying && !limitCategory && (
-          <label className="check-label">
-            <input
-              type="checkbox"
-              checked={dateConfirmed}
-              onChange={(e) => setDateConfirmed(e.target.checked)}
-            />
-            Точная дата платежа известна
-          </label>
-        )}
-        {state === "planned" && !paying && !dateConfirmed && (
-          <p className="form-hint">
-            Платёж останется в бюджете месяца без привязки к конкретному дню.
-          </p>
-        )}
-        <fieldset className="person-fieldset">
-          <legend>
-            {state === "planned" && !paying
-              ? "Для кого"
-              : "Кто " + (kind === "expense" ? "потратил" : "получил")}
-          </legend>
-          <div className="person-options">
-            {state === "planned" && !paying && (
-              <button
-                type="button"
-                className={!author ? "selected" : ""}
-                onClick={() => setAuthor("")}
-              >
-                Общие
-              </button>
-            )}
-            {data.users.map((u) => (
-              <button
-                type="button"
-                key={u.id}
-                className={author === String(u.id) ? "selected" : ""}
-                onClick={() => setAuthor(String(u.id))}
-              >
-                {u.name}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        <label>
-          Комментарий <span className="muted">· необязательно</span>
-          <textarea
-            rows={2}
-            maxLength={2000}
-            placeholder="Что стоит запомнить об этой операции?"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </label>
+          {linkedSaving && (
+            <p className="form-hint">
+              Запись связана с целью. Изменение суммы обновит её прогресс.
+            </p>
+          )}
+          {state === "planned" && !paying && !limitCategory && (
+            <label className="check-label">
+              <input
+                type="checkbox"
+                checked={!dateConfirmed}
+                onChange={(e) => setDateConfirmed(!e.target.checked)}
+              />
+              Точная дата неизвестна
+            </label>
+          )}
+          {state === "planned" && !paying && !dateConfirmed && (
+            <p className="form-hint">
+              Платёж останется в плане месяца без привязки к конкретному дню.
+            </p>
+          )}
+        </details>
         {paying && (
           <p className="form-hint">
-            План сохранится. Создадим связанную фактическую операцию от
-            выбранного автора.
+            План сохранится. Появится запись, что это уже прошло.
           </p>
         )}
         {error && (

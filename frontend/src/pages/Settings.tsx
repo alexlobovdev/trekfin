@@ -5,13 +5,10 @@ import {
   Check,
   Download,
   ExternalLink,
-  Handshake,
   KeyRound,
   Plus,
-  Repeat2,
   ShieldCheck,
   Smartphone,
-  Target,
   Trash2,
 } from "lucide-react";
 import { api, monthLabel, money } from "../api";
@@ -20,16 +17,17 @@ import { CategoryIcon, Modal } from "../components/ui";
 export default function Settings({
   data,
   user,
+  tab,
+  onTab,
   onRefresh,
-  onNavigate,
 }: {
   data: Bootstrap;
   user: User;
+  tab: string;
+  onTab: (tab: string) => void;
   onRefresh: () => void;
-  onNavigate: (p: string) => void;
 }) {
-  const [tab, setTab] = useState("categories"),
-    [category, setCategory] = useState<Partial<Category> | null>(null),
+  const [category, setCategory] = useState<Partial<Category> | null>(null),
     [password, setPassword] = useState(false),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
@@ -95,20 +93,6 @@ export default function Settings({
   };
   return (
     <>
-      <div className="mobile-shortcuts">
-        <button onClick={() => onNavigate("recurring")}>
-          <Repeat2 size={20} />
-          Регулярные платежи
-        </button>
-        <button onClick={() => onNavigate("debts")}>
-          <Handshake size={20} />
-          Долги и кредиты
-        </button>
-        <button onClick={() => onNavigate("savings")}>
-          <Target size={20} />
-          Накопления
-        </button>
-      </div>
       <div className="tabs">
         {[
           ["categories", "Категории"],
@@ -119,7 +103,7 @@ export default function Settings({
             key={id}
             className={tab === id ? "selected" : ""}
             onClick={() => {
-              setTab(id);
+              onTab(id);
               setMessage("");
               setError("");
             }}
@@ -179,7 +163,7 @@ export default function Settings({
                       <CategoryIcon category={c} />
                       <strong>{c.name}</strong>
                       <span>
-                        {c.mode === "limit" ? "Лимит месяца" : "Платёж"}
+                        {c.mode === "limit" ? "Лимит" : "Платёж"}
                       </span>
                     </button>
                   ))}
@@ -187,7 +171,7 @@ export default function Settings({
             </div>
           ))}
           <p className="source-note">
-            Удалённые категории остаются в старых операциях. История
+            Удалённые категории остаются в старых записях. История
             сохраняется.
           </p>
         </section>
@@ -291,7 +275,7 @@ export default function Settings({
               </button>
               <a href="/api/export" className="button secondary">
                 <Download size={17} />
-                Скачать операции CSV
+                Скачать CSV
               </a>
               <a href="/api/import-source" className="button secondary">
                 <ExternalLink size={16} />
@@ -460,12 +444,15 @@ function CategoryForm({
           </select>
         </label>
         <label>
-          Как учитывать план
+          В плане
           <select name="mode" defaultValue={category.mode || "payment"}>
             <option value="limit">Лимит на месяц</option>
-            <option value="payment">Конкретный платёж</option>
+            <option value="payment">Отдельный платёж</option>
           </select>
         </label>
+        <p className="form-hint">
+          Лимит уменьшают покупки. Платёж отмечают галочкой.
+        </p>
         <div className="form-grid">
           <label>
             Цвет

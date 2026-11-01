@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight, Check, Heart, Plus } from "lucide-react";
+import { ArrowRight, Check, Plus } from "lucide-react";
 import { money } from "../api";
 import type { Bootstrap, Entry, Insight, Month } from "../types";
 import {
@@ -70,58 +70,28 @@ export default function Overview({
       <div className="summary-grid">
         <section className="balance-card">
           <div className="balance-copy">
-            <span className="balance-label">
-              Осталось сейчас
-            </span>
+            <span className="balance-label">Свободно</span>
             <strong>{money(t.balance)}</strong>
-            <p>
-              После всех запланированных платежей и расходов в пределах лимитов
-              останется {money(t.forecast)}.
-            </p>
-            <button
-              onClick={() => onNavigate("budget")}
-              className="balance-link"
-            >
-              Посмотреть бюджет <ArrowUpRight size={16} />
-            </button>
-          </div>
-          <div className="balance-art" aria-hidden="true">
-            <div className="orbit o1" />
-            <div className="orbit o2" />
-            <div className="little-card">
-              <span>trekfin.</span>
-              <Heart size={18} />
-              <div className="card-chip" />
-              <b>•••• 002</b>
-            </div>
-            <div className="coin">₽</div>
-            <div className="spark">✳</div>
+            <p>К концу месяца {money(t.forecast)}</p>
           </div>
         </section>
         <Stat
           label="Доходы за месяц"
           value={t.income}
-          detail={"В плане " + money(t.planned_income)}
+          detail={"в плане " + money(t.planned_income)}
           income
         />
         <Stat
           label="Расходы за месяц"
           value={t.expense}
-          detail={"В плане " + money(t.planned_expense)}
+          detail={"в плане " + money(t.planned_expense)}
         />
       </div>
       <GoalsDashboard data={data} month={month} onNavigate={onNavigate} />
       <div className="dashboard-grid">
         <section className="panel spending-panel">
           <div className="panel-title">
-            <div>
-              <h2>{t.expense ? "Куда уходят деньги" : "План расходов"}</h2>
-              <p>
-                {t.expense
-                  ? "Фактические расходы по категориям"
-                  : "Бюджет из вашей таблицы"}
-              </p>
-            </div>
+            <h2>{t.expense ? "Куда уходят деньги" : "План расходов"}</h2>
             <span className="quiet-pill">{categories.length} категорий</span>
           </div>
           {total ? (
@@ -162,8 +132,8 @@ export default function Overview({
             </div>
           ) : (
             <Empty
-              title="Начнём с плана?"
-              body="Добавьте регулярные платежи или запишите первую операцию."
+              title="Пока пусто"
+              body="Запишите расход или соберите план месяца."
             />
           )}
           {limitRows.length > 0 && (
@@ -182,15 +152,9 @@ export default function Overview({
         </section>
         <section className="panel upcoming-panel">
           <div className="panel-title">
-            <div>
-              <h2>Платежи по плану</h2>
-              <p>Чтобы ничего не упустить</p>
-            </div>
-            <button
-              className="text-button"
-              onClick={() => onNavigate("budget")}
-            >
-              Все <ArrowRight size={15} />
+            <h2>Нужно оплатить</h2>
+            <button className="text-button" onClick={() => onNavigate("budget")}>
+              Весь план <ArrowRight size={15} />
             </button>
           </div>
           <div className="upcoming-list">
@@ -222,30 +186,21 @@ export default function Overview({
                 title="Всё спокойно"
                 body={
                   plans.length
-                    ? "Все запланированные платежи подтверждены."
-                    : "На этот месяц ещё нет запланированных платежей."
+                    ? "Платежи этого месяца закрыты."
+                    : "В этом месяце нет платежей."
                 }
               />
             )}
           </div>
-          <button
-            className="subtle-button full"
-            onClick={() => onNavigate("budget")}
-          >
-            Открыть план месяца <ArrowRight size={15} />
-          </button>
         </section>
         <section className="panel recent-panel">
           <div className="panel-title">
-            <div>
-              <h2>Последние операции</h2>
-              <p>Каждая мелочь на своём месте</p>
-            </div>
+            <h2>Последние</h2>
             <button
               className="text-button"
               onClick={() => onNavigate("transactions")}
             >
-              Все операции <ArrowRight size={15} />
+              Вся история <ArrowRight size={15} />
             </button>
           </div>
           {actual.length ? (
@@ -254,12 +209,12 @@ export default function Overview({
               .map((e) => <EntryRow key={e.id} entry={e} onEdit={onEdit} />)
           ) : (
             <Empty
-              title="Пока без записей"
-              body="Планы уже на месте. Добавьте первый реальный расход или доход."
+              title="Пока пусто"
+              body="Запишите расход или доход."
               action={
                 <button className="button secondary" onClick={onAdd}>
                   <Plus size={16} />
-                  Добавить операцию
+                  Записать
                 </button>
               }
             />
@@ -269,28 +224,19 @@ export default function Overview({
           <TipCard initial={insight} />
           <section className="panel couple-card">
             <div className="panel-title">
-              <h2>Мы в этом вместе</h2>
-              <Heart size={17} />
+              <h2>Кто сколько потратил</h2>
             </div>
             {month.by_author.map((p) => (
               <div className="person-summary" key={p.id}>
                 <Avatar name={p.name} />
                 <div>
                   <strong>{p.name}</strong>
-                  <span>Расходы за месяц</span>
                 </div>
                 <strong>{money(p.expense)}</strong>
               </div>
             ))}
           </section>
         </div>
-      </div>
-      <div className="page-foot">
-        <span>
-          <span className="status-dot" />
-          Ваши финансы видны только вам двоим
-        </span>
-        <span>Маленькие шаги. Общие планы.</span>
       </div>
     </>
   );

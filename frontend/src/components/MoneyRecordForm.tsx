@@ -129,7 +129,7 @@ export default function MoneyRecordForm({
             />
           </label>
           <label>
-            Кто вносит
+            Кто
             <select
               name="author_id"
               defaultValue={record?.author_id || record?.created_by || userId}

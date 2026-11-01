@@ -1,11 +1,9 @@
 import { useState } from "react";
 import {
-  ArrowDownLeft,
   ArrowUpRight,
   ChevronDown,
   Plus,
   Settings2,
-  Sparkles,
   Trophy,
 } from "lucide-react";
 import { dateLabel, money, today } from "../api";
@@ -22,19 +20,20 @@ export default function Savings({
   userId,
   onRefresh,
   month: selectedMonth,
+  showArchive,
 }: {
   data: Bootstrap;
   userId: number;
   onRefresh: () => void;
   month: Month;
+  showArchive: boolean;
 }) {
   const [editing, setEditing] = useState<SavingsGoal | "new" | null>(null),
     [movement, setMovement] = useState<{
       goal: SavingsGoal;
       record?: MoneyRecord;
       withdraw?: boolean;
-    } | null>(null),
-    [showArchive, setShowArchive] = useState(false);
+    } | null>(null);
   const active = data.savings.filter((g) => !g.archived),
     total = active.reduce((s, g) => s + g.saved_cents, 0),
     closed = active.filter((g) => g.saved_cents >= g.target_cents).length,
@@ -53,33 +52,20 @@ export default function Savings({
   };
   return (
     <>
-      <div className="savings-hero">
-        <div>
-          <span className="eyebrow">МАЛЕНЬКИЕ ШАГИ К БОЛЬШИМ ПЛАНАМ</span>
-          <h2>
-            У каждой мечты есть начало<span>.</span>
-          </h2>
-          <p>
-            Копите вместе, отмечайте этапы и наблюдайте, как цель становится
-            ближе.
-          </p>
-        </div>
-        <Sparkles size={60} strokeWidth={1} />
-      </div>
       <div className="resource-stats">
         <div>
-          <span>Накоплено в активных целях</span>
+          <span>Накоплено</span>
           <strong>{money(total)}</strong>
         </div>
         <div>
-          <span>Изменение за этот месяц</span>
+          <span>В этом месяце</span>
           <strong className={added >= 0 ? "positive" : ""}>
             {added > 0 ? "+" : ""}
             {money(added)}
           </strong>
         </div>
         <div>
-          <span>Достигнуто целей</span>
+          <span>Достигнуто</span>
           <strong>
             <Trophy size={22} />
             {closed}
@@ -88,14 +74,10 @@ export default function Savings({
         </div>
       </div>
       <div className="resource-toolbar">
-        <label className="check-label">
-          <input
-            type="checkbox"
-            checked={showArchive}
-            onChange={(e) => setShowArchive(e.target.checked)}
-          />
-          Показывать архив
-        </label>
+        <p className="section-hint">
+          Пополнение — расход «Отложенное», снятие — доход «Возврат из
+          накоплений».
+        </p>
         <button className="button primary" onClick={() => setEditing("new")}>
           <Plus size={17} />
           Новая цель
@@ -131,19 +113,9 @@ export default function Savings({
                   <div className="resource-card-title">
                     <GoalIcon goal={g} />
                     <div>
-                      <span className="eyebrow">
-                        {g.archived
-                          ? "В АРХИВЕ"
-                          : percent >= 100
-                            ? "МЕЧТА СБЫЛАСЬ"
-                            : percent >= 75
-                              ? "ФИНИШНАЯ ПРЯМАЯ"
-                              : percent >= 50
-                                ? "ПОЛОВИНА ПУТИ"
-                                : percent >= 25
-                                  ? "ОТЛИЧНЫЙ РАЗГОН"
-                                  : "НАЧАЛО ИСТОРИИ"}
-                      </span>
+                      {g.archived && (
+                        <span className="quiet-pill">В архиве</span>
+                      )}
                       <h2>{g.title}</h2>
                     </div>
                   </div>
@@ -245,10 +217,10 @@ export default function Savings({
             );
           })}
       </div>
-      {!active.length && !showArchive && (
+      {!data.savings.filter((g) => showArchive || !g.archived).length && (
         <Empty
-          title="О чём вы мечтаете?"
-          body="Отпуск, подушка безопасности, новый дом — создайте первую цель и начните с любой суммы."
+          title={showArchive ? "В архиве пусто" : "Пока нет целей"}
+          body="Создайте цель и начните с любой суммы."
           action={
             <button
               className="button secondary"
@@ -260,13 +232,6 @@ export default function Savings({
           }
         />
       )}
-      <div className="info-banner">
-        <ArrowDownLeft size={20} />
-        <p>
-          Пополнение записывается расходом «Отложенное», снятие — доходом
-          «Возврат из накоплений». Каждая запись меняет бюджет и прогресс цели.
-        </p>
-      </div>
       {editing && (
         <SavingsForm
           goal={editing === "new" ? undefined : editing}
@@ -280,8 +245,8 @@ export default function Savings({
             movement.record
               ? "Изменить запись"
               : movement.withdraw
-                ? "Взять из накоплений"
-                : "Ещё ближе к мечте"
+                ? "Снять"
+                : "Пополнить"
           }
           endpoint={`savings/${movement.goal.id}/movements${movement.record ? "/" + movement.record.id : ""}`}
           record={movement.record}
