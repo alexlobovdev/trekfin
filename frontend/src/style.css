@@ -4702,3 +4702,110 @@ a {
 .purchase-row:hover { background: #faf5f1; }
 .pending-receipts { padding: 20px; display: grid; gap: 10px; }
 @media (max-width: 600px) { .purchase-row { padding: 14px 12px; font-size: 13px; } .receipt-scan-actions .button { flex: 1; } }
+
+/* Short receipt entry flow */
+.entry-methods { display: grid; gap: 12px; }
+.entry-methods > p { margin: 0 0 6px; color: #786a7f; font-size: 14px; }
+.entry-method { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 20px 16px; border: 1px solid var(--border); border-radius: 16px; background: #fff; color: #594661; }
+.entry-method.scan { background: #fcf3f7; border-color: #efcbdc; }
+.entry-method:hover { border-color: var(--pink); }
+.entry-method > span:nth-child(2) { flex: 1; display: grid; gap: 6px; }
+.entry-method strong { font-size: 16px; }
+.entry-method small { color: #82738b; font-size: 12px; line-height: 1.5; }
+.entry-method-icon { display: grid; place-items: center; width: 46px; height: 46px; background: #f7eef4; border-radius: 13px; color: var(--pink); flex-shrink: 0; }
+.manual-scan-link, .scanner-back { display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 42px; }
+.scanner-viewfinder { position: relative; isolation: isolate; min-height: 280px; aspect-ratio: 1.12; width: 100%; border-radius: 18px; overflow: hidden; background: #29212f; color: #fff; display: grid; place-items: center; }
+.scanner-viewfinder .receipt-camera { position: absolute; inset: 0; width: 100%; height: 100%; max-height: none; border-radius: 0; }
+.scanner-reticle { display: grid; place-items: center; width: 150px; height: 150px; border: 2px solid #ffffffb3; border-radius: 20px; margin-bottom: 40px; color: #ffffff9e; box-shadow: 0 0 0 150px #160d1d35; z-index: 1; }
+.scanner-caption { position: absolute; bottom: 22px; left: 16px; right: 16px; text-align: center; display: grid; gap: 6px; z-index: 2; text-shadow: 0 1px 5px #0008; }
+.scanner-caption strong { font-size: 15px; }
+.scanner-caption span { font-size: 12px; color: #f4eaf5; }
+.scanner-viewfinder.is-loading { background: #fcf7fa; color: #594661; border: 1px solid var(--border); }
+.scanner-loading { display: grid; justify-items: center; text-align: center; gap: 14px; padding: 26px; }
+.scanner-loading .spinner { width: 36px; height: 36px; border-width: 3px; }
+.scanner-loading strong { font-size: 18px; }
+.scanner-loading p, .scanner-loading small { margin: 0; color: #84768b; font-size: 13px; line-height: 1.6; }
+.scanner-loading small { font-size: 11px; }
+.scanner-error { color: #8f573d; background: #fff4e9; padding: 12px; border-radius: 10px; margin: 0; font-size: 13px; line-height: 1.6; }
+.scanner-manual { border-top: 1px solid var(--border); padding-top: 14px; }
+.scanner-manual summary { cursor: pointer; color: #85758b; font-size: 13px; min-height: 30px; }
+.scanner-manual label { margin: 12px 0; }
+.receipt-scan-actions > .button { flex: 1; justify-content: center; min-height: 48px; }
+.receipt-scan-actions label.receipt-photo { display: flex; align-items: center; gap: 8px; }
+.receipt-summary { text-align: center; display: grid; justify-items: center; gap: 7px; padding: 0 0 20px; border-bottom: 1px solid var(--border); }
+.receipt-success { color: #548471; font-size: 12px; display: flex; align-items: center; gap: 5px; }
+.receipt-amount { font-size: clamp(30px, 8vw, 42px); letter-spacing: -1.4px; color: #594661; line-height: 1.3; margin: 4px 0; }
+.receipt-merchant { font-size: 15px; font-weight: 600; color: #68566f; overflow-wrap: anywhere; }
+.receipt-summary > small { color: #8c7e91; font-size: 12px; }
+.receipt-summary .text-button { display: flex; align-items: center; gap: 5px; font-size: 12px; padding: 6px; }
+.receipt-category-picker { display: grid; gap: 12px; }
+.receipt-field-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; align-items: baseline; }
+.receipt-field-heading strong { font-size: 14px; color: #68566f; }
+.receipt-field-heading > span, .receipt-help { color: #8c7e91; font-size: 11px; line-height: 1.5; }
+.receipt-category-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.receipt-category-choice { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 11px 5px; border: 1px solid var(--border); border-radius: 12px; color: #786580; background: white; min-height: 85px; }
+.receipt-category-choice > span:not(.category-icon) { font-size: 11px; line-height: 1.3; overflow-wrap: anywhere; }
+.receipt-category-choice .category-icon { width: 31px; height: 31px; border-radius: 10px; }
+.receipt-category-choice.selected { border-color: var(--pink); background: #fcf0f6; color: var(--pink-dark); box-shadow: inset 0 0 0 1px var(--pink); }
+.receipt-category-choice > small { color: #9b6f89; font-size: 10px; }
+.receipt-category-select select { margin: 0 !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.receipt-expense-form .receipt-details { padding: 0; border-color: var(--border); }
+.receipt-details > summary, .receipt-edit-details > summary { display: flex; justify-content: space-between; align-items: center; gap: 10px; cursor: pointer; list-style: none; }
+.receipt-details > summary { padding: 15px; color: #786580; font-size: 13px; }
+.receipt-details > summary::-webkit-details-marker, .receipt-edit-details > summary::-webkit-details-marker { display: none; }
+.receipt-details > summary > span { display: flex; align-items: center; gap: 8px; }
+.receipt-details > summary small { font-size: 11px; background: #f5eff7; padding: 3px 7px; border-radius: 6px; }
+.receipt-details[open] > summary > svg, .receipt-edit-details[open] > summary > svg { transform: rotate(180deg); }
+.receipt-expense-form .purchase-list { padding: 0 15px; }
+.receipt-expense-form .receipt-total { padding: 15px; font-size: 13px; border-top: 1px solid var(--border); }
+.receipt-edit-details > summary { color: #8c7e91; font-size: 12px; padding: 3px 0; }
+.receipt-edit-details > label { margin-top: 14px; }
+.receipt-pending { padding: 14px; border-radius: 12px; background: #f9f6fa; display: grid; gap: 10px; }
+.receipt-pending strong { color: #786580; font-size: 13px; }
+.receipt-pending p { margin: 6px 0 0; color: #8c7e91; font-size: 12px; line-height: 1.6; }
+.receipt-pending .button { justify-self: start; font-size: 12px; padding: 8px 12px; display: flex; align-items: center; gap: 7px; background: #fff; }
+.spinning { animation: spin 1.2s linear infinite; }
+.receipt-save-bar { position: sticky; bottom: -25px; padding: 15px 0 4px; background: #fff; display: grid; justify-items: center; gap: 8px; z-index: 3; border-top: 1px solid var(--border); box-shadow: 0 -12px 16px #ffffffed; }
+.receipt-save-bar > .button { width: 100%; min-height: 48px; }
+.receipt-save-bar > small { color: #8c7e91; font-size: 11px; }
+.receipt-delete-confirm { background: #fff0f1; color: #93495a; border-radius: 12px; padding: 14px; font-size: 13px; }
+.receipt-delete-confirm p { line-height: 1.6; margin: 8px 0 14px; }
+.receipt-delete-confirm > div { display: flex; gap: 8px; }
+.button.danger { background: #ac4058; color: #fff; }
+.purchases-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
+.purchases-heading > p { color: #8c7e91; font-size: 13px; }
+.receipt-attention-banner { display: flex; align-items: center; gap: 12px; width: 100%; padding: 16px; text-align: left; background: #fff8e9; border: 1px solid #eedab5; border-radius: 14px; color: #98702f; }
+.receipt-attention-banner > span:first-of-type { display: grid; gap: 5px; flex: 1; }
+.receipt-attention-banner strong { font-size: 13px; }
+.receipt-attention-banner small { font-size: 11px; color: #9c835a; line-height: 1.5; }
+.receipt-attention-banner > span:last-of-type { font-size: 12px; white-space: nowrap; }
+.receipt-attention-banner.selected { border-color: #b58232; }
+.purchases-toolbar { display: flex; gap: 16px; flex-wrap: wrap; padding: 18px; border-bottom: 1px solid var(--border); }
+.purchases-toolbar .search-field { flex: 1; min-width: 180px; }
+.purchases-toolbar .segmented { min-width: 220px; }
+.receipt-card { display: flex; align-items: center; gap: 13px; padding: 18px; width: 100%; text-align: left; border-bottom: 1px solid var(--border); color: #6c5875; }
+.receipt-card:hover { background: #fcf8fb; }
+.receipt-card.needs-category { background: #fffbf1; }
+.receipt-card-icon { background: #f7eff8; color: #a37cae; border-radius: 12px; width: 42px; height: 42px; display: grid; place-items: center; flex-shrink: 0; }
+.receipt-card-copy { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.receipt-card-copy > strong { font-size: 14px; overflow-wrap: anywhere; }
+.receipt-card-copy > small { font-size: 11px; color: #96899d; }
+.receipt-card-status { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; font-size: 10px; color: #96899d; }
+.receipt-status-badge { display: inline-flex; justify-self: start; background: #fff0cd; color: #99712a; padding: 4px 7px; border-radius: 6px; font-size: 10px; line-height: 1.3; }
+.receipt-status-pending { color: #96805e; }
+.receipt-card-tail { display: grid; justify-items: end; gap: 10px; font-size: 14px; white-space: nowrap; }
+.receipt-card-tail > svg { color: #c3b3cb; }
+@media (max-width: 600px) {
+  .receipt-save-bar { bottom: calc(-23px - env(safe-area-inset-bottom)); padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .purchases-heading > .button { width: 100%; }
+  .purchases-heading > p { margin: 0; }
+  .purchases-toolbar { padding: 14px; gap: 12px; }
+  .purchases-toolbar > .segmented, .purchases-toolbar > .search-field { width: 100%; flex: auto; }
+  .receipt-card { padding: 16px 12px; gap: 10px; }
+  .receipt-card-icon { width: 34px; height: 38px; }
+  .receipt-card-copy > strong, .receipt-card-tail { font-size: 13px; }
+  .receipt-attention-banner { padding: 14px 12px; gap: 9px; }
+  .receipt-attention-banner > span:last-of-type { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .spinning { animation: none; } }

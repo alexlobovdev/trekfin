@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, ImagePlus } from "lucide-react";
+import { ArrowLeft, Camera, ImagePlus, ScanLine } from "lucide-react";
 import type { IScannerControls } from "@zxing/browser";
 import { api } from "../api";
 import type { ReceiptPreview } from "../types";
@@ -18,17 +18,12 @@ export default function ReceiptScanner({
   const cameraRequest = useRef(0);
   const reading = useRef(false);
   const [camera, setCamera] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const [qr, setQr] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  useEffect(() => {
-    active.current = true;
-    return () => {
-      active.current = false;
-      cameraRequest.current++;
-      controls.current?.stop();
-    };
-  }, []);
+  const [slow, setSlow] = useState(false);
+  const [stage, setStage] = useState<"photo" | "lookup">("lookup");
   const load = async (raw: string) => {
     if (reading.current) return;
     reading.current = true;
@@ -36,6 +31,7 @@ export default function ReceiptScanner({
     controls.current?.stop();
     setCamera(false);
     setQr(raw);
+    setStage("lookup");
     setBusy(true);
     setError("");
     try {
@@ -53,14 +49,20 @@ export default function ReceiptScanner({
   const start = async () => {
     const request = ++cameraRequest.current;
     setError("");
+    setCameraReady(false);
     setCamera(true);
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error();
       const { BrowserQRCodeReader } = await import("@zxing/browser");
+      if (!active.current || request !== cameraRequest.current) return;
       const scanner = await new BrowserQRCodeReader().decodeFromVideoDevice(
         undefined,
         video.current!,
         (result, _, scannerControls) => {
+          if (!active.current || request !== cameraRequest.current) {
+            scannerControls.stop();
+            return;
+          }
           if (
             result &&
             active.current &&
@@ -88,6 +90,21 @@ export default function ReceiptScanner({
       }
     }
   };
+  useEffect(() => {
+    active.current = true;
+    void start();
+    return () => {
+      active.current = false;
+      cameraRequest.current++;
+      controls.current?.stop();
+    };
+  }, []);
+  useEffect(() => {
+    setSlow(false);
+    if (!busy) return;
+    const timer = window.setTimeout(() => setSlow(true), 8000);
+    return () => window.clearTimeout(timer);
+  }, [busy]);
   const photo = async (file?: File) => {
     if (!file || reading.current) return;
     cameraRequest.current++;
@@ -95,6 +112,7 @@ export default function ReceiptScanner({
     setCamera(false);
     setBusy(true);
     setError("");
+    setStage("photo");
     const url = URL.createObjectURL(file);
     try {
       const { BrowserQRCodeReader } = await import("@zxing/browser");
@@ -112,64 +130,119 @@ export default function ReceiptScanner({
   };
   return (
     <Modal title="Сканировать чек" onClose={onClose}>
-      <div className="form">
-        <p className="form-hint">
-          Наведите камеру на QR-код фискального чека. Сумма и дата заполнятся из
-          кода, товары загрузятся из сервиса проверки чеков.
-        </p>
-        <video
-          ref={video}
-          className={"receipt-camera" + (!camera ? " hidden" : "")}
-          muted
-          playsInline
-          aria-label="Камера для сканирования чека"
-        />
-        <div className="receipt-scan-actions">
-          <button
-            type="button"
-            className="button"
-            disabled={busy || camera}
-            onClick={start}
-          >
-            <Camera size={18} />
-            Открыть камеру
-          </button>
-          <label className="button receipt-photo">
-            <ImagePlus size={18} />
-            Фото QR-кода
-            <input
-              type="file"
-              accept="image/*"
-              disabled={busy}
-              onChange={(e) => {
-                void photo(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
-          </label>
-        </div>
-        <label>
-          Текст QR-кода
-          <textarea
-            rows={3}
-            maxLength={512}
-            value={qr}
-            onChange={(e) => setQr(e.target.value)}
-            placeholder="t=…&s=…&fn=…&i=…&fp=…&n=1"
+      <div className="form receipt-scanner">
+        <div className={"scanner-viewfinder" + (busy ? " is-loading" : "")}>
+          <video
+            ref={video}
+            className={"receipt-camera" + (!camera || busy ? " hidden" : "")}
+            onPlaying={() => setCameraReady(true)}
+            onError={() => {
+              if (!camera || busy) return;
+              cameraRequest.current++;
+              controls.current?.stop();
+              setCamera(false);
+              setError(
+                "Не удалось включить камеру. Попробуйте ещё раз или загрузите фото QR-кода.",
+              );
+            }}
+            muted
+            playsInline
+            aria-label="Камера для сканирования чека"
           />
-        </label>
+          {busy ? (
+            <div className="scanner-loading" role="status" aria-live="polite">
+              <div className="spinner" />
+              <strong>
+                {stage === "photo" ? "Читаем QR-код…" : "Загружаем покупки…"}
+              </strong>
+              <p>
+                {slow
+                  ? "Сервису нужно чуть больше времени. Подождём ещё немного."
+                  : stage === "photo"
+                    ? "Ищем код на фотографии"
+                    : "Сумму и дату возьмём из чека"}
+              </p>
+              <small>Загрузка может занять до 25 секунд</small>
+            </div>
+          ) : (
+            <>
+              <div className="scanner-reticle">
+                <ScanLine size={48} strokeWidth={1} />
+              </div>
+              <div className="scanner-caption">
+                <strong>
+                  {camera
+                    ? cameraReady
+                      ? "Наведите камеру на QR-код"
+                      : "Включаем камеру…"
+                    : "Добавьте фото QR-кода"}
+                </strong>
+                <span>
+                  {camera
+                    ? "Держите чек ровно — код считаем автоматически"
+                    : "Код должен быть целиком в кадре"}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
         {error && (
-          <p className="error" role="alert">
+          <p className="scanner-error" role="alert">
             {error}
           </p>
         )}
+        {!busy && (
+          <div className="receipt-scan-actions">
+            {!camera && (
+              <button type="button" className="button" onClick={start}>
+                <Camera size={18} />
+                Включить камеру
+              </button>
+            )}
+            <label className="button receipt-photo">
+              <ImagePlus size={18} />
+              {camera ? "Выбрать фото" : "Загрузить фото"}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  void photo(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </div>
+        )}
+        {!busy && (
+          <details className="scanner-manual">
+            <summary>У меня есть текст QR-кода</summary>
+            <label>
+              Вставьте текст кода
+              <textarea
+                rows={3}
+                maxLength={512}
+                value={qr}
+                onChange={(e) => setQr(e.target.value)}
+                placeholder="Скопируйте строку из приложения для чтения QR"
+              />
+            </label>
+            <button
+              type="button"
+              className="button primary"
+              disabled={!qr.trim()}
+              onClick={() => load(qr.trim())}
+            >
+              Найти чек
+            </button>
+          </details>
+        )}
         <button
           type="button"
-          className="button primary"
-          disabled={busy || !qr.trim()}
-          onClick={() => load(qr.trim())}
+          className="text-button scanner-back"
+          onClick={onClose}
         >
-          {busy ? "Загружаем чек…" : "Загрузить чек"}
+          <ArrowLeft size={16} />
+          {busy ? "Отменить загрузку" : "Назад"}
         </button>
       </div>
     </Modal>

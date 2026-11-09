@@ -1,18 +1,24 @@
 import { useState, type FormEvent } from "react";
-import { ArrowDownLeft, ArrowUpRight, Trash2, ScanLine } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  Trash2,
+  ScanLine,
+  PenLine,
+  ChevronRight,
+} from "lucide-react";
 import { api, amountInput, money, today } from "../api";
 import type {
   Bootstrap,
   CategoryProgress,
   Entry,
   Kind,
-  Receipt,
   ReceiptPreview,
 } from "../types";
 import { Modal } from "./ui";
 import ReceiptScanner from "./ReceiptScanner";
-import ReceiptDetails from "./ReceiptDetails";
-export type EntryDraft = Partial<Entry> & { paying?: boolean };
+import ReceiptExpenseForm from "./ReceiptExpenseForm";
+export type EntryDraft = Partial<Entry> & { paying?: boolean; scan?: boolean };
 export default function EntryForm({
   draft,
   data,
@@ -34,12 +40,18 @@ export default function EntryForm({
 }) {
   const paying = !!draft.paying,
     editing = !!draft.id && !paying;
-  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(!!draft.scan);
   const [scanned, setScanned] = useState<ReceiptPreview | null>(null);
-  const [savedReceipt, setSavedReceipt] = useState<Receipt | null>(
-    draft.receipt || null,
+  const fiscalReceipt = scanned || draft.receipt;
+  const [choosing, setChoosing] = useState(
+    !draft.id &&
+      !draft.paying &&
+      draft.state !== "planned" &&
+      !draft.title &&
+      !draft.amount_cents &&
+      !draft.debt_id &&
+      !draft.savings_goal_id,
   );
-  const fiscalReceipt = scanned || savedReceipt;
   const [kind, setKind] = useState<Kind>(draft.kind || "expense");
   const [state, setState] = useState<"actual" | "planned">(
     !paying && draft.state === "planned" ? "planned" : "actual",
@@ -140,7 +152,6 @@ export default function EntryForm({
           kind,
           state: paying ? "actual" : state,
           category_id: category ? Number(category) : null,
-          receipt_token: scanned?.token,
           author_id: author ? Number(author) : null,
           amount: amount.replace(",", "."),
           date,
@@ -197,29 +208,6 @@ export default function EntryForm({
   const acceptReceipt = (receipt: ReceiptPreview) => {
     setScanned(receipt);
     setScannerOpen(false);
-    setKind("expense");
-    setState("actual");
-    setAuthor(author || String(userId));
-    setCategory("");
-    setDebt("");
-    setSavings("");
-    setLinkedPlan("");
-    setAmount(amountInput(receipt.total_cents));
-    setDate(receipt.date);
-    setTitle((receipt.seller || "Покупка по чеку").slice(0, 120));
-  };
-  const refreshReceipt = async () => {
-    setBusy(true);
-    setError("");
-    try {
-      setSavedReceipt(
-        await api<Receipt>(`entries/${draft.id}/receipt/refresh`, "POST"),
-      );
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
   };
   if (scannerOpen)
     return (
@@ -227,6 +215,50 @@ export default function EntryForm({
         onClose={() => setScannerOpen(false)}
         onScanned={acceptReceipt}
       />
+    );
+  if (fiscalReceipt)
+    return (
+      <ReceiptExpenseForm
+        key={scanned?.token || draft.id}
+        receipt={fiscalReceipt}
+        preview={scanned}
+        draft={scanned ? { author_id: Number(author) || userId } : draft}
+        data={data}
+        userId={userId}
+        onClose={onClose}
+        onSaved={onSaved}
+      />
+    );
+  if (choosing)
+    return (
+      <Modal title="Добавить запись" onClose={onClose}>
+        <div className="entry-methods">
+          <p>Как запишем расход?</p>
+          <button
+            className="entry-method scan"
+            onClick={() => setScannerOpen(true)}
+          >
+            <span className="entry-method-icon">
+              <ScanLine size={25} />
+            </span>
+            <span>
+              <strong>Сканировать чек</strong>
+              <small>Сумма, дата и покупки из QR-кода</small>
+            </span>
+            <ChevronRight size={19} />
+          </button>
+          <button className="entry-method" onClick={() => setChoosing(false)}>
+            <span className="entry-method-icon">
+              <PenLine size={23} />
+            </span>
+            <span>
+              <strong>Ввести вручную</strong>
+              <small>Расход, доход или платёж в плане</small>
+            </span>
+            <ChevronRight size={19} />
+          </button>
+        </div>
+      </Modal>
     );
   return (
     <Modal
@@ -239,57 +271,19 @@ export default function EntryForm({
         {!editing && !paying && (
           <button
             type="button"
-            className="button"
+            className="text-button manual-scan-link"
             disabled={busy}
             onClick={() => setScannerOpen(true)}
           >
             <ScanLine size={18} />
-            {scanned ? "Сканировать другой чек" : "Сканировать"}
+            Сканировать чек вместо ввода
           </button>
-        )}
-        {fiscalReceipt && (
-          <>
-            {!category && (
-              <p className="receipt-warning" role="status">
-                Без категории — выберите её сейчас или разберите чек позже.
-              </p>
-            )}
-            {scanned?.suggested_category && (
-              <p className="form-hint">
-                Предлагаемая категория:{" "}
-                <button
-                  className="text-button"
-                  type="button"
-                  onClick={() =>
-                    setCategory(String(scanned.suggested_category!.id))
-                  }
-                >
-                  {scanned.suggested_category.name}
-                </button>
-                <br />
-                По ранее разобранным чекам этого магазина. Нажмите, чтобы
-                выбрать.
-              </p>
-            )}
-            {scanned?.message && <p className="form-hint">{scanned.message}</p>}
-            <ReceiptDetails receipt={fiscalReceipt} />
-            {savedReceipt?.status === "pending" && (
-              <button
-                type="button"
-                className="button"
-                disabled={busy}
-                onClick={refreshReceipt}
-              >
-                {busy ? "Загружаем…" : "Загрузить покупки"}
-              </button>
-            )}
-          </>
         )}
         <div className="segmented">
           <button
             type="button"
             className={state === "actual" ? "selected" : ""}
-            disabled={paying || editing || linkedSaving || !!fiscalReceipt}
+            disabled={paying || editing || linkedSaving}
             onClick={() => {
               setState("actual");
               if (!author) setAuthor(String(userId));
@@ -300,7 +294,7 @@ export default function EntryForm({
           <button
             type="button"
             className={state === "planned" ? "selected" : ""}
-            disabled={paying || editing || linkedSaving || !!fiscalReceipt}
+            disabled={paying || editing || linkedSaving}
             onClick={() => setState("planned")}
           >
             В плане
@@ -310,7 +304,7 @@ export default function EntryForm({
           <button
             type="button"
             className={kind === "expense" ? "selected" : ""}
-            disabled={paying || linkedSaving || !!fiscalReceipt}
+            disabled={paying || linkedSaving}
             onClick={() => changeKind("expense")}
           >
             <ArrowUpRight size={16} />
@@ -319,7 +313,7 @@ export default function EntryForm({
           <button
             type="button"
             className={kind === "income" ? "selected" : ""}
-            disabled={paying || linkedSaving || !!fiscalReceipt}
+            disabled={paying || linkedSaving}
             onClick={() => changeKind("income")}
           >
             <ArrowDownLeft size={16} />
@@ -329,7 +323,6 @@ export default function EntryForm({
         <label className="amount-field">
           Сумма, ₽
           <input
-            readOnly={!!fiscalReceipt}
             autoFocus
             required
             inputMode="decimal"
@@ -342,7 +335,7 @@ export default function EntryForm({
         <label>
           Категория
           <select
-            required={!fiscalReceipt}
+            required
             disabled={paying || linkedSaving}
             value={category}
             onChange={(e) => {
@@ -357,9 +350,6 @@ export default function EntryForm({
                 setExtraOpen(true);
             }}
           >
-            {fiscalReceipt && (
-              <option value="">Без категории · разобрать позже</option>
-            )}
             {data.categories
               .filter(
                 (c) =>
@@ -554,11 +544,6 @@ export default function EntryForm({
             </p>
           )}
         </details>
-        {editing && fiscalReceipt && confirmDelete && (
-          <p className="receipt-warning">
-            Вместе с расходом будут удалены чек и все покупки из него.
-          </p>
-        )}
         {paying && (
           <p className="form-hint">
             План сохранится. Появится запись, что это уже прошло.

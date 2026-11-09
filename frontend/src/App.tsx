@@ -369,7 +369,7 @@ export default function App() {
                   onAdd={() => add()}
                 />
               )}{" "}
-              {page === "purchases" && <Purchases month={snapshot} onEdit={setDraft} />}
+              {page === "purchases" && <Purchases month={snapshot} onEdit={setDraft} onScan={() => setDraft({ state: "actual", author_id: user.id, scan: true })} />}
               {page === "calendar" && (
                 <Calendar
                   month={snapshot}
