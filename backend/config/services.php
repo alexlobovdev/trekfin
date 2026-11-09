@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'receipts' => ['token' => env('RECEIPTS_API_TOKEN')],
+
     'webpush' => [
         'subject' => env('VAPID_SUBJECT', 'https://trekfin.ru'),
         'public_key' => env('VAPID_PUBLIC_KEY'),

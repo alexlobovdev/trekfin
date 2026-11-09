@@ -6,6 +6,7 @@ use App\Http\Controllers\DebtController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\InsightController;
 use App\Http\Controllers\PushController;
+use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\RecurringController;
 use App\Http\Controllers\SavingsController;
 use App\Http\Middleware\RequirePasswordChange;
@@ -28,6 +29,8 @@ Route::prefix('api')->group(function () {
             Route::get('bootstrap', [FinanceController::class, 'bootstrap']);
             Route::get('month', [FinanceController::class, 'month']);
             Route::post('month', [FinanceController::class, 'saveMonth']);
+            Route::post('receipts/preview', [ReceiptController::class, 'preview'])->middleware('throttle:10,1,receipts:');
+            Route::post('entries/{entry}/receipt/refresh', [ReceiptController::class, 'refresh'])->middleware('throttle:10,1,receipts:');
             Route::post('entries', [FinanceController::class, 'saveEntry']);
             Route::post('entries/{entry}/pay', [FinanceController::class, 'pay']);
             Route::put('entries/{entry}', [FinanceController::class, 'saveEntry']);

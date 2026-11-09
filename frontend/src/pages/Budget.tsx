@@ -37,7 +37,7 @@ export default function Budget({
     plans = month.entries.filter((e) => e.state === "planned"),
     limits = (month.categories || []).filter((c) => c.mode === "limit"),
     limitIds = new Set(limits.map((c) => c.id)),
-    payments = plans.filter((e) => !limitIds.has(e.category_id)),
+    payments = plans.filter((e) => !limitIds.has(e.category_id ?? 0)),
     incomes = payments.filter((e) => e.kind === "income"),
     expenses = payments.filter((e) => e.kind === "expense");
   const generate = async () => {

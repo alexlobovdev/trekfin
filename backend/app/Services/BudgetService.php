@@ -15,7 +15,7 @@ class BudgetService
     public function month(string $month): array
     {
         $date = CarbonImmutable::createFromFormat('!Y-m', $month);
-        $entries = Entry::with(['category', 'author', 'debt'])->whereBetween('date', [$date->toDateString(), $date->endOfMonth()->toDateString()])->orderByDesc('date')->orderByDesc('id')->get();
+        $entries = Entry::with(['category', 'author', 'debt', 'receipt'])->whereBetween('date', [$date->toDateString(), $date->endOfMonth()->toDateString()])->orderByDesc('date')->orderByDesc('id')->get();
         $cutoff = min(now()->toDateString(), $date->endOfMonth()->toDateString());
         $allPayments = Entry::where('state', 'actual')->where('date', '<=', $date->endOfMonth()->toDateString())->whereIn('plan_id', $entries->where('state', 'planned')->pluck('id'))->selectRaw('plan_id, SUM(amount_cents) as paid')->groupBy('plan_id')->pluck('paid', 'plan_id');
         $entries->each(function ($e) use ($allPayments) {
@@ -34,6 +34,10 @@ class BudgetService
             return ['id' => $c->id, 'name' => $c->name, 'kind' => $c->kind, 'mode' => $c->mode, 'color' => $c->color, 'icon' => $c->icon,
                 'planned_cents' => $planned, 'actual_cents' => $actual, 'left_cents' => $c->mode === 'limit' ? max(0, $planned - $actual) : 0, 'over_cents' => $c->mode === 'limit' ? max(0, $actual - $planned) : 0];
         })->filter(fn ($c) => $c['planned_cents'] || $c['actual_cents'])->values();
+        $uncategorised = (int) $entries->where('state', 'actual')->whereNull('category_id')->sum('amount_cents');
+        if ($uncategorised) {
+            $categories->push(['id' => 0, 'name' => 'Без категории', 'kind' => 'expense', 'mode' => 'payment', 'color' => '#b7791f', 'icon' => 'receipt', 'planned_cents' => 0, 'actual_cents' => $uncategorised, 'left_cents' => 0, 'over_cents' => 0]);
+        }
         $scheduled = fn ($kind) => (int) $entries->where('state', 'planned')->where('kind', $kind)->filter(fn ($e) => $e->category?->mode !== 'limit')->sum(fn ($e) => max(0, $e->amount_cents - $e->paid_cents));
         $limitLeft = fn ($kind) => (int) $categories->where('kind', $kind)->where('mode', 'limit')->sum('left_cents');
         $opening = (int) ($plan?->opening_cents ?? 0);

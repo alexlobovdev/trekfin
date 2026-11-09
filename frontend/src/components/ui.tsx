@@ -189,13 +189,14 @@ export function EntryRow({
   const planned = entry.state === "planned",
     paid = planned && entry.paid_cents >= entry.amount_cents;
   return (
-    <div className="entry-row">
+    <div className={"entry-row" + (entry.receipt && !entry.category_id ? " needs-category" : "")}>
       <button className="entry-main" onClick={() => onEdit(entry)}>
         <CategoryIcon category={entry.category} />
         <span className="entry-copy">
           <strong>{entry.title}</strong>
           <span>
             {entry.category.name}
+            {entry.receipt && <> · Чек{entry.receipt.status === "loaded" ? ` · ${entry.receipt.purchases.length} поз.` : " · товары ожидаются"}</>}
             <i />{" "}
             {planned && !entry.date_confirmed
               ? "Этот месяц"

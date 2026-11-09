@@ -26,7 +26,8 @@ export type CategoryProgress = {
 export type Entry = {
   id: number;
   title: string;
-  category_id: number;
+  category_id: number | null;
+  receipt?: Receipt | null;
   category: Category;
   author_id: number | null;
   author: Person | null;
@@ -154,4 +155,26 @@ export type Insight = {
   updated: string | null;
   live: boolean;
   rates: { date: string; values: Record<string, number> } | null;
+};
+
+export type Purchase = {
+  id?: number;
+  name: string;
+  price_cents: number;
+  quantity: number;
+  amount_cents: number;
+};
+export type Receipt = {
+  id?: number;
+  qr: string;
+  seller: string | null;
+  total_cents: number;
+  date: string;
+  status: "pending" | "loaded";
+  purchases: Purchase[];
+};
+export type ReceiptPreview = Receipt & {
+  token: string;
+  suggested_category: Category | null;
+  message: string | null;
 };

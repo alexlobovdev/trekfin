@@ -23,9 +23,9 @@ export default function Transactions({
       e.state === "actual" &&
       (!author || String(e.author_id) === author) &&
       (!kind || e.kind === kind) &&
-      (!category || String(e.category_id) === category) &&
+      (!category || (category === "uncategorised" ? !e.category_id : String(e.category_id) === category)) &&
       (!search ||
-        (e.title + " " + e.category.name + " " + e.note)
+        (e.title + " " + e.category.name + " " + e.note + " " + (e.receipt?.purchases.map(p => p.name).join(" ") || ""))
           .toLowerCase()
           .includes(search.toLowerCase())),
   );
@@ -71,6 +71,7 @@ export default function Transactions({
           onChange={(e) => setCategory(e.target.value)}
         >
           <option value="">Все категории</option>
+          <option value="uncategorised">Без категории · разобрать чеки</option>
           {data.categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}

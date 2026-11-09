@@ -6,11 +6,13 @@ use App\Models\Category;
 use App\Models\Debt;
 use App\Models\Entry;
 use App\Models\MonthPlan;
+use App\Models\Receipt;
 use App\Models\Recurring;
 use App\Models\SavingsGoal;
 use App\Models\User;
 use App\Services\BudgetService;
 use App\Services\Money;
+use App\Services\ReceiptService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -52,24 +54,44 @@ class FinanceController extends Controller
     private function entryData(Request $r, ?Entry $entry): array
     {
         $v = $r->validate([
-            'title' => 'required|string|max:120', 'category_id' => ['required', 'integer', Rule::exists('categories', 'id')],
+            'title' => 'required|string|max:120', 'category_id' => ['nullable', 'integer', Rule::exists('categories', 'id')],
             'author_id' => ['nullable', 'integer', Rule::exists('users', 'id')], 'kind' => 'required|in:income,expense', 'state' => 'required|in:planned,actual',
             'amount' => ['required', 'regex:/^\d{1,9}([.,]\d{1,2})?$/'], 'date' => 'required|date_format:Y-m-d|after_or_equal:2000-01-01|before:2100-01-01',
             'note' => 'nullable|string|max:2000', 'plan_id' => 'nullable|integer|exists:entries,id',
             'date_confirmed' => 'sometimes|boolean',
+            'receipt_token' => 'nullable|string|max:2000000',
             'debt_id' => 'nullable|integer|exists:debts,id',
             'savings_goal_id' => 'nullable|integer|exists:savings_goals,id',
         ]);
         if ($v['state'] === 'actual' && empty($v['author_id'])) {
             throw ValidationException::withMessages(['author_id' => 'Укажите, кто совершил операцию.']);
         }
-        $category = Category::findOrFail($v['category_id']);
-        $existingCategory = $entry?->exists && (int) $entry->category_id === (int) $category->id;
-        $linkedCategory = ! empty($v['plan_id']) && (int) Entry::whereKey($v['plan_id'])->value('category_id') === (int) $category->id;
-        if ((! $category->active && ! $existingCategory && ! $linkedCategory) || $category->kind !== $v['kind']) {
+        $receipt = ! empty($v['receipt_token']) ? app(ReceiptService::class)->decode($v['receipt_token'], $r->user()->id) : null;
+        unset($v['receipt_token']);
+        if ($receipt && $entry?->exists) {
+            abort(422, 'Чек добавляется вместе с новой операцией.');
+        }
+        $hasReceipt = $receipt || $entry?->receipt;
+        $v['category_id'] = $v['category_id'] ?? null;
+        if ($hasReceipt && ($v['kind'] !== 'expense' || $v['state'] !== 'actual')) {
+            abort(422, 'Чек можно прикрепить только к фактическому расходу.');
+        }
+        if (! $v['category_id'] && (! $hasReceipt || ! empty($v['plan_id']) || ! empty($v['debt_id']) || ! empty($v['savings_goal_id']))) {
+            throw ValidationException::withMessages(['category_id' => 'Выберите категорию.']);
+        }
+        $category = $v['category_id'] ? Category::findOrFail($v['category_id']) : null;
+        $existingCategory = $entry?->exists && (int) $entry->category_id === (int) $category?->id;
+        $linkedCategory = ! empty($v['plan_id']) && (int) Entry::whereKey($v['plan_id'])->value('category_id') === (int) $category?->id;
+        if ($category && ((! $category->active && ! $existingCategory && ! $linkedCategory) || $category->kind !== $v['kind'])) {
             throw ValidationException::withMessages(['category_id' => 'Выберите активную категорию нужного типа.']);
         }
         $v['amount_cents'] = Money::cents($v['amount']);
+        if ($hasReceipt && $v['amount_cents'] !== ($receipt['total_cents'] ?? $entry->receipt->total_cents)) {
+            abort(422, 'Сумма расхода должна совпадать с итогом чека.');
+        }
+        if ($receipt) {
+            $v['_receipt'] = $receipt;
+        }
         $v['date_confirmed'] = $v['state'] === 'actual' || ($v['date_confirmed'] ?? ($entry?->exists && $entry->date->format('Y-m-d') === $v['date'] ? $entry->date_confirmed : true));
         unset($v['amount']);
         $v['debt_id'] = array_key_exists('debt_id', $v) ? $v['debt_id'] : $entry?->debt_id;
@@ -143,12 +165,24 @@ class FinanceController extends Controller
             if ($entity->recurring_id && ($entity->date->toDateString() !== $v['date'] || $entity->date_confirmed !== $v['date_confirmed'])) {
                 $v['recurring_date_overridden'] = true;
             }
+            $receipt = $v['_receipt'] ?? null;
+            unset($v['_receipt']);
+            if ($receipt) {
+                // Serialize duplicate imports, including concurrent scans of the same receipt.
+                User::orderBy('id')->lockForUpdate()->firstOrFail();
+                abort_if(Receipt::where('fingerprint', $receipt['fingerprint'])->exists(), 422, 'Этот чек уже добавлен.');
+            }
             $entity->fill([...$v, 'updated_by' => $r->user()->id])->save();
+            if ($receipt) {
+                $items = $receipt['purchases'];
+                unset($receipt['purchases']);
+                $entity->receipt()->create($receipt)->purchases()->createMany($items);
+            }
             if ($v['state'] === 'planned') {
                 MonthPlan::firstOrCreate(['month' => substr($v['date'], 0, 7)]);
             }
 
-            return $entity->load('category', 'author', 'debt');
+            return $entity->load('category', 'author', 'debt', 'receipt');
         });
     }
 

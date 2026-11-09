@@ -12,6 +12,7 @@ import {
   Send,
   PiggyBank,
   Target,
+  ShoppingBasket,
 } from "lucide-react";
 import { api, ApiError, invalidateCsrf, money, monthLabel, today } from "./api";
 import type { Bootstrap, Debt, Entry, Insight, Month, User } from "./types";
@@ -22,6 +23,7 @@ import Calendar from "./pages/Calendar";
 import Auth from "./pages/Auth";
 import Overview from "./pages/Overview";
 import Budget from "./pages/Budget";
+import Purchases from "./pages/Purchases";
 import Transactions from "./pages/Transactions";
 import Goals from "./pages/Goals";
 import Settings from "./pages/Settings";
@@ -30,6 +32,7 @@ const pages = [
   { id: "budget", label: "План", icon: PiggyBank },
   { id: "calendar", label: "Календарь", icon: CalendarDays },
   { id: "transactions", label: "История", icon: Wallet },
+  { id: "purchases", label: "Покупки", icon: ShoppingBasket },
   { id: "goals", label: "Цели", icon: Target },
 ];
 const labels: Record<string, string> = {
@@ -37,6 +40,7 @@ const labels: Record<string, string> = {
   budget: "План",
   calendar: "Календарь",
   transactions: "История",
+  purchases: "Покупки",
   goals: "Цели",
   settings: "Настройки",
 };
@@ -302,7 +306,7 @@ export default function App() {
               <span className="heading-dot">.</span>
             </h1>
             <div className="heading-actions">
-              {["overview", "budget", "transactions", "calendar"].includes(
+              {["overview", "budget", "transactions", "calendar", "purchases"].includes(
                 page,
               ) && <MonthPicker month={month} onChange={setMonth} />}
               {!["goals", "settings"].includes(page) && (
@@ -365,6 +369,7 @@ export default function App() {
                   onAdd={() => add()}
                 />
               )}{" "}
+              {page === "purchases" && <Purchases month={snapshot} onEdit={setDraft} />}
               {page === "calendar" && (
                 <Calendar
                   month={snapshot}
@@ -432,6 +437,7 @@ export default function App() {
             <Wallet size={18} />
             История
           </button>
+          <button className={page === "purchases" ? "active" : ""} onClick={() => navigate("purchases")}><ShoppingBasket size={18} />Покупки</button>
           <button
             className={page === "goals" ? "active" : ""}
             onClick={() => navigate("goals")}
@@ -480,7 +486,7 @@ export default function App() {
         <button
           className={
             moreOpen ||
-            ["transactions", "goals", "settings"].includes(page)
+            ["transactions", "purchases", "goals", "settings"].includes(page)
               ? "active"
               : ""
           }
@@ -501,7 +507,7 @@ export default function App() {
             snapshot?.entries.filter((e) => e.state === "planned") || []
           }
           progress={snapshot?.categories || []}
-          onClose={() => setDraft(null)}
+          onClose={() => { setDraft(null); void refresh(); }}
           onSaved={() => {
             setDraft(null);
             setReceipt(null);
